@@ -1,4 +1,4 @@
-# app/api/insights/schemas.py
+# D:\socialadify\backend\app\api\insights\schemas.py
 
 from pydantic import BaseModel
 from typing import List

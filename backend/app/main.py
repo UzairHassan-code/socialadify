@@ -1,4 +1,4 @@
-# app/main.py
+# D:\socialadify\backend\app\main.py
 
 from fastapi import FastAPI
 from app.api.insights.router import router as insights_router
