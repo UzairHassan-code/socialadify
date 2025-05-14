@@ -3,36 +3,36 @@
 // Use environment variable for the API base URL
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
 
-// Interface for signup data, without age and university_name
-interface SignupData {
+// Interface for signup data
+// Ensure 'export' keyword is present
+export interface SignupData {
   email: string;
   password: string;
   firstname: string;
   lastname: string;
-  // age: number; // REMOVED
-  // university_name: string; // REMOVED
 }
 
-// Interface for login data (as sent from the login form component)
-interface LoginFormData {
+// Interface for login data
+// Ensure 'export' keyword is present
+export interface LoginFormData {
   email: string;
   password: string;
 }
 
 // Interface for the token response from the backend
-interface TokenResponse {
+// Ensure 'export' keyword is present
+export interface TokenResponse {
   access_token: string;
   token_type: string;
 }
 
-// Interface for public user data (matching backend's UserPublic schema)
-interface UserPublic {
+// Interface for public user data
+// Ensure 'export' keyword is present
+export interface UserPublic {
   id: string;
   firstname: string;
   lastname: string;
   email: string;
-  // age?: number; // REMOVED
-  // university_name?: string; // REMOVED
 }
 
 // Helper function to process API error responses
@@ -40,7 +40,7 @@ async function handleApiError(response: Response, defaultErrorMessage: string): 
   let processedErrorMessage = defaultErrorMessage;
   try {
     const errorData = await response.json();
-    console.error("AUTH_SERVICE_RECEIVED_ERROR_DATA:", errorData); // Log raw error data
+    console.error("AUTH_SERVICE_RECEIVED_ERROR_DATA:", errorData);
 
     if (errorData && errorData.detail) {
       const detail = errorData.detail;
@@ -68,7 +68,7 @@ async function handleApiError(response: Response, defaultErrorMessage: string): 
   throw new Error(processedErrorMessage);
 }
 
-
+// Function to sign up a user
 export async function signupUser(userData: SignupData): Promise<UserPublic> {
   console.log("Attempting signup with data:", userData);
   const response = await fetch(`${API_BASE_URL}/auth/signup`, {
@@ -80,32 +80,32 @@ export async function signupUser(userData: SignupData): Promise<UserPublic> {
   });
 
   if (!response.ok) {
+    // If the response is not OK, parse the error and throw
     await handleApiError(response, 'Signup failed. Please check your details.');
   }
+  // If response is OK, parse and return the JSON (UserPublic)
   return response.json();
 }
 
+// Function to log in a user
 export async function loginUser(credentials: LoginFormData): Promise<TokenResponse> {
   console.log("Attempting login with credentials:", credentials);
-  // For OAuth2PasswordRequestForm, the backend expects 'username' and 'password'
-  // as form data, not JSON.
   const formData = new URLSearchParams();
-  formData.append('username', credentials.email); // FastAPI's OAuth2 form expects 'username' for the email/ID field
+  formData.append('username', credentials.email); // Backend expects 'username' for email
   formData.append('password', credentials.password);
 
   const response = await fetch(`${API_BASE_URL}/auth/login`, {
     method: 'POST',
     headers: {
-      // Content-Type for URLSearchParams is 'application/x-www-form-urlencoded'
-      // It's often set automatically by fetch when body is URLSearchParams,
-      // but can be explicit if needed.
       'Content-Type': 'application/x-www-form-urlencoded',
     },
-    body: formData.toString(), // Convert URLSearchParams to string
+    body: formData.toString(),
   });
 
   if (!response.ok) {
+    // If the response is not OK, parse the error and throw
     await handleApiError(response, 'Login failed. Please check your credentials.');
   }
+  // If response is OK, parse and return the JSON (TokenResponse)
   return response.json();
 }
