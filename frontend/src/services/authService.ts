@@ -1,10 +1,7 @@
 // D:\socialadify\frontend\src\services\authService.ts
 
-// Use environment variable for the API base URL
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
 
-// Interface for signup data
-// Ensure 'export' keyword is present
 export interface SignupData {
   email: string;
   password: string;
@@ -12,22 +9,16 @@ export interface SignupData {
   lastname: string;
 }
 
-// Interface for login data
-// Ensure 'export' keyword is present
 export interface LoginFormData {
   email: string;
   password: string;
 }
 
-// Interface for the token response from the backend
-// Ensure 'export' keyword is present
 export interface TokenResponse {
   access_token: string;
   token_type: string;
 }
 
-// Interface for public user data
-// Ensure 'export' keyword is present
 export interface UserPublic {
   id: string;
   firstname: string;
@@ -35,40 +26,71 @@ export interface UserPublic {
   email: string;
 }
 
-// Helper function to process API error responses
+// Improved helper function to process API error responses
 async function handleApiError(response: Response, defaultErrorMessage: string): Promise<never> {
   let processedErrorMessage = defaultErrorMessage;
-  try {
-    const errorData = await response.json();
-    console.error("AUTH_SERVICE_RECEIVED_ERROR_DATA:", errorData);
+  
+  // Log status and content type for debugging
+  console.error(`AUTH_SERVICE_HANDLE_ERROR: Status: ${response.status}, Content-Type: ${response.headers.get('Content-Type')}`);
 
-    if (errorData && errorData.detail) {
-      const detail = errorData.detail;
-      if (Array.isArray(detail) && detail.length > 0) {
-        const firstError = detail[0];
-        if (typeof firstError === 'object' && firstError !== null && 'msg' in firstError && typeof (firstError as { msg: unknown }).msg === 'string') {
-          processedErrorMessage = (firstError as { msg: string }).msg;
-        } else {
-          processedErrorMessage = `Multiple validation errors occurred. (Details: ${JSON.stringify(detail)})`;
+  try {
+    // First, try to get the response as text, as it might not be JSON
+    const responseText = await response.text();
+    console.error("AUTH_SERVICE_HANDLE_ERROR: Response Text:", responseText);
+
+    // Try to parse it as JSON
+    try {
+      const errorData = JSON.parse(responseText);
+      console.error("AUTH_SERVICE_HANDLE_ERROR: Parsed JSON errorData:", errorData);
+
+      if (errorData && errorData.detail) {
+        const detail = errorData.detail;
+        if (Array.isArray(detail) && detail.length > 0) {
+          const firstError = detail[0];
+          // Handle FastAPI validation errors which are arrays of objects
+          if (typeof firstError === 'object' && firstError !== null && 'msg' in firstError && typeof (firstError as { msg: unknown }).msg === 'string') {
+            processedErrorMessage = (firstError as { msg: string }).msg;
+          } else {
+            // Fallback for array of details if not in expected FastAPI validation format
+            processedErrorMessage = `Multiple errors: ${JSON.stringify(detail)}`;
+          }
+        } else if (typeof detail === 'string') {
+          // Handle simple string detail (like "Email already registered")
+          processedErrorMessage = detail;
+        } else if (typeof detail === 'object' && detail !== null) {
+          // Handle cases where detail itself is an object (e.g. from other error structures)
+          if ('msg' in detail && typeof (detail as {msg: unknown}).msg === 'string') {
+              processedErrorMessage = (detail as {msg: string}).msg;
+          } else {
+              processedErrorMessage = JSON.stringify(detail); // Stringify the detail object
+          }
+        } else if (responseText) {
+            // If detail is not useful but responseText has content, use that.
+            // This handles cases where the error is plain text or non-standard JSON.
+            processedErrorMessage = responseText;
         }
-      } else if (typeof detail === 'string') {
-        processedErrorMessage = detail;
-      } else if (typeof detail === 'object' && detail !== null) {
-        if ('msg' in detail && typeof (detail as {msg: unknown}).msg === 'string') {
-            processedErrorMessage = (detail as {msg: string}).msg;
-        } else {
-            processedErrorMessage = JSON.stringify(detail);
-        }
+      } else if (responseText) {
+        // If errorData or errorData.detail is not present, but we have raw text
+        processedErrorMessage = responseText;
       }
+    } catch (jsonParseError) {
+      // If JSON.parse fails, but we have the raw text, use it.
+      console.error("AUTH_SERVICE_HANDLE_ERROR: Failed to parse response as JSON. Raw text:", responseText, jsonParseError);
+      if (responseText) {
+        processedErrorMessage = responseText;
+      }
+      // If responseText is also empty, the defaultErrorMessage will be used.
     }
   } catch (e) {
-    console.error("AUTH_SERVICE_ERROR_PARSING_JSON or UNEXPECTED_ERROR_STRUCTURE:", e);
+    // Catch errors from response.text() itself or other unexpected issues
+    console.error("AUTH_SERVICE_HANDLE_ERROR: Error reading response body or unexpected error:", e);
   }
+
   console.error("AUTH_SERVICE_THROWING_ERROR_MESSAGE:", processedErrorMessage);
   throw new Error(processedErrorMessage);
 }
 
-// Function to sign up a user
+
 export async function signupUser(userData: SignupData): Promise<UserPublic> {
   console.log("Attempting signup with data:", userData);
   const response = await fetch(`${API_BASE_URL}/auth/signup`, {
@@ -80,18 +102,16 @@ export async function signupUser(userData: SignupData): Promise<UserPublic> {
   });
 
   if (!response.ok) {
-    // If the response is not OK, parse the error and throw
-    await handleApiError(response, 'Signup failed. Please check your details.');
+    // The handleApiError function is designed to always throw, satisfying Promise<never>
+    return handleApiError(response, 'Signup failed. Please check your details.');
   }
-  // If response is OK, parse and return the JSON (UserPublic)
-  return response.json();
+  return response.json(); // For successful response
 }
 
-// Function to log in a user
 export async function loginUser(credentials: LoginFormData): Promise<TokenResponse> {
   console.log("Attempting login with credentials:", credentials);
   const formData = new URLSearchParams();
-  formData.append('username', credentials.email); // Backend expects 'username' for email
+  formData.append('username', credentials.email);
   formData.append('password', credentials.password);
 
   const response = await fetch(`${API_BASE_URL}/auth/login`, {
@@ -103,9 +123,7 @@ export async function loginUser(credentials: LoginFormData): Promise<TokenRespon
   });
 
   if (!response.ok) {
-    // If the response is not OK, parse the error and throw
-    await handleApiError(response, 'Login failed. Please check your credentials.');
+    return handleApiError(response, 'Login failed. Please check your credentials.');
   }
-  // If response is OK, parse and return the JSON (TokenResponse)
   return response.json();
 }

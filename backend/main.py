@@ -1,22 +1,18 @@
-# D:\socialadify\backend\main.py
+# D:\socialadify\backend\app\main.py
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from dotenv import load_dotenv
-from contextlib import asynccontextmanager # Import for lifespan
+# from dotenv import load_dotenv # Usually handled by config.py or session.py
+from contextlib import asynccontextmanager
 
-# Import routers
+# Import routers from both features
 from app.api.auth.auth_router import router as auth_router
-# from app.api.insights.router import router as insights_router # Uncomment when merging
+from app.api.insights.router import router as insights_router # Make sure this path is correct
 
-# Import database connection handlers
-from app.db.session import connect_to_mongo, close_mongo_connection
+# Import database connection handlers from the auth feature
+from app.db.session import connect_to_mongo, close_mongo_connection # Make sure this path is correct
 
-# Load environment variables from .env file (can be called here or in config/session)
-# If session.py already loads it, this might be redundant but harmless.
-load_dotenv() 
-
-# Lifespan manager for database connection
+# Lifespan manager for database connection (from auth feature)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("Application startup: Initializing resources...")
@@ -25,8 +21,13 @@ async def lifespan(app: FastAPI):
     print("Application shutdown: Cleaning up resources...")
     await close_mongo_connection() # Disconnect from DB on shutdown
 
-# Initialize FastAPI app with lifespan manager
-app = FastAPI(title="SocialAdify API - Auth Branch", lifespan=lifespan)
+# Initialize FastAPI app with lifespan manager and a general title
+app = FastAPI(
+    title="SocialAdify API (Merged)",
+    description="API for Social Media and Ad Management Platform",
+    version="0.1.0",
+    lifespan=lifespan # Apply the lifespan manager
+)
 
 # CORS Middleware Setup
 origins = [
@@ -42,12 +43,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include Routers
+# Include Routers from both features
 app.include_router(auth_router, prefix="/auth", tags=["Authentication"])
-# app.include_router(insights_router, prefix="/insights", tags=["Insights"]) # Uncomment when merging
+app.include_router(insights_router, prefix="/insights", tags=["Insights & AI Suggestions"])
 
-# Basic root endpoint
 @app.get("/")
-def read_root():
-    return {"message": "SocialAdify Backend (Auth Branch) is running"}
+async def read_root():
+    return {"message": "Welcome to the SocialAdify Backend (Merged)!"}
 
+@app.get("/health")
+async def health_check():
+    return {"status": "healthy"}
