@@ -8,25 +8,31 @@ import EditProfileModal from '@/components/EditProfileModal';
 import Image from 'next/image';
 import { apiUpdateUserProfile, UserProfileUpdateData } from '@/services/authService';
 
-// Simple SVG Icons (ensure these are defined or imported)
+// Simple SVG Icons
 const UserCircleIcon = ({ className }: { className?: string }) => ( <svg className={className || "w-6 h-6"} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M17.982 18.725A7.488 7.488 0 0012 15.75a7.488 7.488 0 00-5.982 2.975m11.963 0a9 9 0 10-11.963 0m11.963 0A8.966 8.966 0 0112 21a8.966 8.966 0 01-5.982-2.275M15 9.75a3 3 0 11-6 0 3 3 0 016 0z" /></svg> );
 const EditIcon = ({ className }: { className?: string }) => ( <svg className={className || "w-5 h-5"} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" /></svg> );
-const HomeIcon = ({ className }: { className?: string }) => (  <svg className={className || "w-5 h-5"} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"> <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125A2.25 2.25 0 0021 18.75V9.75M8.25 21h7.5" /> </svg> );
+const HomeIcon = ({ className }: { className?: string }) => ( <svg className={className || "w-5 h-5"} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"> <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125A2.25 2.25 0 0021 18.75V9.75M8.25 21h7.5" /> </svg> );
 const LogoutIcon = ({ className }: { className?: string }) => ( <svg className={className || "w-5 h-5"} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"> <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" /> </svg> );
+const HistoryIcon = ({ className = "w-6 h-6" }: { className?: string }) => ( // Re-added HistoryIcon
+    <svg className={className} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
+    </svg>
+);
+
 
 export default function AccountPage() {
   const { user, logout, isAuthenticated, isAuthReady, token, fetchAndUpdateUser } = useAuth();
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   if (!isAuthReady) { 
-    return ( <div className="flex items-center justify-center min-h-screen"><p>Loading account...</p></div> ); // Message consistent with layout bg
+    return ( <div className="flex items-center justify-center min-h-screen"><p>Loading account...</p></div> ); 
   }
   if (!isAuthenticated && isAuthReady) { 
     return ( <div className="flex items-center justify-center min-h-screen"><p>Redirecting to login...</p></div> );
    }
 
   const handleLogout = () => { logout(); };
-  const handleProfileUpdate = async (profileData: UserProfileUpdateData): Promise<boolean> => { /* ... same as before ... */ 
+  const handleProfileUpdate = async (profileData: UserProfileUpdateData): Promise<boolean> => { 
     if (!token) { alert("Authentication error."); return false; }
     try {
       await apiUpdateUserProfile(token, profileData); 
@@ -40,7 +46,6 @@ export default function AccountPage() {
 
   return (
     <>
-      {/* Page content now renders on the dark gradient background from AccountLayout */}
       <div className="py-12 sm:py-16 px-4 sm:px-6 lg:px-8">
         <div className="max-w-3xl mx-auto">
           
@@ -53,7 +58,6 @@ export default function AccountPage() {
             </p>
           </div>
 
-          {/* Profile Information Card - Styled for dark theme */}
           <div className="bg-slate-800/70 backdrop-blur-md shadow-2xl rounded-2xl p-6 sm:p-8 mb-8 border border-slate-700">
             <div className="flex flex-col sm:flex-row items-center">
               <div className="flex-shrink-0 mb-6 sm:mb-0 sm:mr-8 relative">
@@ -86,7 +90,6 @@ export default function AccountPage() {
             </div>
           </div>
 
-          {/* Action Cards - Styled for dark theme */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
             <Link href="/home" className="group block p-6 bg-slate-800/60 backdrop-blur-md shadow-xl rounded-2xl hover:bg-slate-700/80 hover:border-indigo-500/70 border border-slate-700 transition-all duration-300 ease-in-out transform hover:-translate-y-1">
               <div className="flex items-center mb-2">
@@ -95,9 +98,16 @@ export default function AccountPage() {
               </div>
               <p className="text-sm text-slate-400">Return to the main application hub.</p>
             </Link>
+            <Link href="/caption-history" className="group block p-6 bg-slate-800/60 backdrop-blur-md shadow-xl rounded-2xl hover:bg-slate-700/80 hover:border-sky-500/70 border border-slate-700 transition-all duration-300 ease-in-out transform hover:-translate-y-1">
+              <div className="flex items-center mb-2">
+                <HistoryIcon className="w-6 h-6 text-sky-400 mr-3 group-hover:text-sky-300 transition-colors" />
+                <h3 className="text-lg font-semibold text-slate-100 group-hover:text-sky-300 transition-colors">Caption History</h3>
+              </div>
+              <p className="text-sm text-slate-400">View and manage your saved captions.</p>
+            </Link>
             <button
               onClick={handleLogout}
-              className="group w-full p-6 bg-slate-800/60 backdrop-blur-md shadow-xl rounded-2xl hover:bg-slate-700/80 hover:border-red-500/70 border border-slate-700 transition-all duration-300 ease-in-out transform hover:-translate-y-1 text-left"
+              className="group w-full p-6 bg-slate-800/60 backdrop-blur-md shadow-xl rounded-2xl hover:bg-slate-700/80 hover:border-red-500/70 border border-slate-700 transition-all duration-300 ease-in-out transform hover:-translate-y-1 text-left md:col-span-2" // Span across 2 columns on md+
             >
               <div className="flex items-center mb-2">
                 <LogoutIcon className="w-6 h-6 text-red-500 mr-3 group-hover:text-red-400 transition-colors" />
@@ -107,7 +117,6 @@ export default function AccountPage() {
             </button>
           </div>
 
-          {/* Settings Sections - Styled for dark theme */}
           <div className="space-y-6">
             <div className="bg-slate-800/60 backdrop-blur-md shadow-xl rounded-2xl p-6 sm:p-8 border border-slate-700">
               <h3 className="text-lg font-semibold text-slate-100 mb-1">Security Settings</h3>
@@ -134,3 +143,4 @@ export default function AccountPage() {
     </>
   );
 }
+

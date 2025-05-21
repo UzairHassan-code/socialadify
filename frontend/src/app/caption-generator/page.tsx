@@ -3,7 +3,9 @@
 
 import React, { useState, ChangeEvent, FormEvent } from 'react';
 import Image from 'next/image';
+import Link from 'next/link'; 
 import { useAuth } from '@/context/AuthContext';
+import { saveCaptionToDB, CaptionSaveData } from '@/services/captionService'; 
 
 // Icons
 const UploadIcon = ({ className = "w-10 h-10 text-slate-500 group-hover:text-indigo-400 transition-colors" }: { className?: string }) => (
@@ -14,9 +16,14 @@ const UploadIcon = ({ className = "w-10 h-10 text-slate-500 group-hover:text-ind
 const EditIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
 );
-const SaveIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
+const SaveIcon = ({ className = "w-4 h-4" }: { className?: string }) => ( 
     <svg className={className} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+    </svg>
+);
+const SaveToDBIcon = ({ className = "w-4 h-4" }: { className?: string }) => ( 
+    <svg className={className} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+         <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
     </svg>
 );
 const CancelIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
@@ -59,6 +66,17 @@ const CookingPotLoader = ({ className = "w-12 h-12 text-indigo-400" }: { classNa
         </path>
     </svg>
 );
+const HistoryIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
+    <svg className={className} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
+    </svg>
+);
+const HomeIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
+    <svg className={className} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125A2.25 2.25 0 0021 18.75V9.75M8.25 21h7.5" />
+    </svg>
+);
+
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://127.0.0.1:8000';
 
@@ -70,6 +88,15 @@ interface CaptionItem {
     text: string;
     originalText: string; 
     isEditing: boolean;
+    isSaving?: boolean; 
+    isSaved?: boolean;  
+    dbId?: string;      
+    preferences_category?: string;
+    preferences_tone?: string;
+    preferences_include_hashtags?: boolean;
+    preferences_include_emojis?: boolean;
+    original_image_description?: string | null;
+    source_image_filename?: string | null;
 }
 
 export default function CaptionGeneratorPage() {
@@ -84,7 +111,7 @@ export default function CaptionGeneratorPage() {
     const [generatedCaptions, setGeneratedCaptions] = useState<CaptionItem[]>([]); 
     const [editingCaptionText, setEditingCaptionText] = useState<string>(""); 
     
-    const [isLoading, setIsLoading] = useState(false);
+    const [isLoading, setIsLoading] = useState(false); 
     const [error, setError] = useState<string | null>(null);
     const [infoMessage, setInfoMessage] = useState<string | null>(null);
     
@@ -118,7 +145,7 @@ export default function CaptionGeneratorPage() {
             setError("Authentication required. Please log in.");
             return;
         }
-        setIsLoading(true); setError(null); setGeneratedCaptions([]); setInfoMessage(null);
+        setIsLoading(true); setError(null); setGeneratedCaptions([]); setInfoMessage(null); 
 
         const formData = new FormData();
         if (imageFile) {
@@ -149,20 +176,29 @@ export default function CaptionGeneratorPage() {
 
             const result = await response.json();
             const captionsFromApi: string[] = result.captions || [];
+            const currentBlipDescription = result.image_description_used || null;
+
             setGeneratedCaptions(
                 captionsFromApi.map((text, index) => ({
                     id: `caption-${Date.now()}-${index}`, 
                     text: text,
                     originalText: text, 
                     isEditing: false,
+                    isSaving: false,
+                    isSaved: false,
+                    preferences_category: postCategory,
+                    preferences_tone: tone,
+                    preferences_include_hashtags: includeHashtags,
+                    preferences_include_emojis: includeEmojis,
+                    original_image_description: currentBlipDescription, 
+                    source_image_filename: imageFile?.name || null,
                 }))
             );
 
-            if (result.image_description_used) {
-                // Display the description as is, without adding extra quotes
-                const descriptionToDisplay = String(result.image_description_used);
+            if (currentBlipDescription) {
+                const descriptionToDisplay = String(currentBlipDescription);
                 setInfoMessage(`Image description used by AI: ${descriptionToDisplay}`);
-            } else if (imageFile && !result.image_description_used) {
+            } else if (imageFile && !currentBlipDescription) {
                 setInfoMessage("Image was uploaded, but an automatic description could not be obtained or used. Captions generated based on preferences only.");
             }
 
@@ -202,7 +238,7 @@ export default function CaptionGeneratorPage() {
     const handleSaveEdit = (captionId: string) => {
         setGeneratedCaptions(prevCaptions =>
             prevCaptions.map(cap =>
-                cap.id === captionId ? { ...cap, text: editingCaptionText, isEditing: false, originalText: editingCaptionText } : cap
+                cap.id === captionId ? { ...cap, text: editingCaptionText, isEditing: false, originalText: editingCaptionText, isSaved: false, dbId: undefined } : cap 
             )
         );
         setEditingCaptionText(""); 
@@ -215,6 +251,42 @@ export default function CaptionGeneratorPage() {
             )
         );
         setEditingCaptionText(""); 
+    };
+
+    const handleSaveCaptionToDB = async (captionItem: CaptionItem) => {
+        if (!token) {
+            setError("Authentication required to save captions.");
+            logout(); 
+            return;
+        }
+        setGeneratedCaptions(prev => prev.map(c => c.id === captionItem.id ? { ...c, isSaving: true } : c));
+        setError(null); setInfoMessage(null);
+
+        const saveData: CaptionSaveData = {
+            caption_text: captionItem.text,
+            category: captionItem.preferences_category,
+            tone: captionItem.preferences_tone,
+            include_hashtags: captionItem.preferences_include_hashtags,
+            include_emojis: captionItem.preferences_include_emojis,
+            image_description_used: captionItem.original_image_description,
+            source_image_filename: captionItem.source_image_filename,
+            is_edited: captionItem.text !== captionItem.originalText,
+        };
+
+        try {
+            const savedCaption = await saveCaptionToDB(token, saveData);
+            setGeneratedCaptions(prev => prev.map(c => c.id === captionItem.id ? { ...c, isSaving: false, isSaved: true, dbId: savedCaption.id } : c));
+            setInfoMessage(`Caption saved successfully! (ID: ${savedCaption.id})`);
+            setTimeout(() => setInfoMessage(null), 3000);
+        } catch (err) {
+            console.error("Failed to save caption:", err);
+            const errorMessage = err instanceof Error ? err.message : "Could not save caption.";
+            setError(errorMessage);
+            if (errorMessage.toLowerCase().includes("unauthorized")) {
+                logout();
+            }
+            setGeneratedCaptions(prev => prev.map(c => c.id === captionItem.id ? { ...c, isSaving: false } : c));
+        }
     };
 
 
@@ -230,11 +302,27 @@ export default function CaptionGeneratorPage() {
 
     return (
         <div className="py-8 md:py-12 space-y-10">
-            <header className="text-center">
-                <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight bg-gradient-to-r from-sky-400 via-blue-400 to-indigo-400 bg-clip-text text-transparent pb-2">
-                    AI Caption Generator
-                </h1>
-                <p className="mt-3 text-md text-slate-400 max-w-2xl mx-auto">
+            <header className="text-center relative"> 
+                <div className="flex justify-between items-center mb-4 px-2 sm:px-0"> {/* Flex container for title and buttons */}
+                    <Link 
+                        href="/home"
+                        className="inline-flex items-center gap-2 px-3 py-2 text-xs font-medium text-sky-200 bg-sky-700/50 hover:bg-sky-600/70 rounded-lg shadow-md transition-colors focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2 focus:ring-offset-slate-900"
+                    >
+                        <HomeIcon className="w-4 h-4" />
+                        Back to Hub
+                    </Link>
+                    <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-slate-50 tracking-tight bg-gradient-to-r from-sky-400 via-blue-400 to-indigo-400 bg-clip-text text-transparent pb-1 flex-grow text-center">
+                        AI Caption Generator
+                    </h1>
+                    <Link 
+                        href="/caption-history"
+                        className="inline-flex items-center gap-2 px-3 py-2 text-xs font-medium text-sky-200 bg-sky-700/50 hover:bg-sky-600/70 rounded-lg shadow-md transition-colors focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-2 focus:ring-offset-slate-900"
+                    >
+                        <HistoryIcon className="w-4 h-4" />
+                        View History
+                    </Link>
+                </div>
+                <p className="mt-1 text-md text-slate-400 max-w-2xl mx-auto">
                     Craft compelling social media captions in seconds. Upload an image (optional), set your preferences, and let AI do the magic!
                 </p>
             </header>
@@ -264,7 +352,6 @@ export default function CaptionGeneratorPage() {
             <section className={`${cardBaseClass} max-w-2xl mx-auto`}>
                 <h2 className="text-xl font-semibold text-slate-100 mb-6 text-center">2. Describe Your Post</h2>
                 <form onSubmit={handleGenerateCaptions} className="space-y-5">
-                    {/* Form inputs remain the same */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                         <div>
                             <label htmlFor="postCategory" className={labelBaseClass}>Post Category</label>
@@ -366,6 +453,15 @@ export default function CaptionGeneratorPage() {
                                             disabled={captionItem.isEditing} 
                                         >
                                             <CopyIcon/>
+                                        </button>
+                                        <button
+                                            title={captionItem.isSaved ? "Saved to My Captions" : "Save to My Captions"}
+                                            onClick={() => handleSaveCaptionToDB(captionItem)}
+                                            disabled={captionItem.isSaving || captionItem.isSaved || captionItem.isEditing}
+                                            className={`${buttonSecondaryClass} ${captionItem.isSaved ? 'bg-emerald-600/80 text-white cursor-default' : 'bg-blue-600/80 hover:bg-blue-500/80 text-white'} disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5`}
+                                        >
+                                            {captionItem.isSaving ? <LoadingSpinner className="w-3 h-3 text-white"/> : <SaveToDBIcon className="w-3.5 h-3.5"/>}
+                                            {captionItem.isSaving ? 'Saving...' : (captionItem.isSaved ? 'Saved' : 'Save')}
                                         </button>
                                     </div>
                                 </div>
