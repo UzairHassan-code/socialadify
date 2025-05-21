@@ -1,187 +1,187 @@
 // D:\socialadify\frontend\src\app\(auth)\login\page.tsx
-'use client';
+"use client";
 
-import { useState, FormEvent, useEffect } from 'react';
-import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { useAuth } from '@/context/AuthContext';
+import { FormEvent, useState, useEffect } from "react";
+import Link from "next/link";
+import { useAuth } from "@/context/AuthContext";
+import { useRouter, useSearchParams } from "next/navigation";
+
+// SVG Icons (can be moved to a separate file/library)
+const AppLogo = ({ className = "w-10 h-10 text-white" }: { className?: string }) => (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+        <path fillRule="evenodd" clipRule="evenodd" d="M12 2C17.5228 2 22 6.47715 22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2ZM12 6C9.14344 6 6.79378 7.65981 5.64006 9.99995H8.04005C8.82681 8.78081 10.2993 8 12 8C13.7007 8 15.1732 8.78081 15.9599 9.99995H18.3599C17.2062 7.65981 14.8566 6 12 6ZM12 16C10.2993 16 8.82681 15.2191 8.04005 14H5.64006C6.79378 16.3401 9.14344 18 12 18C14.8566 18 17.2062 16.3401 18.3599 14H15.9599C15.1732 15.2191 13.7007 16 12 16ZM5 12C5 11.7181 5.01793 11.4402 5.05279 11.1667H18.9472C18.9821 11.4402 19 11.7181 19 12C19 12.2819 18.9821 12.5597 18.9472 12.8333H5.05279C5.01793 12.5597 5 12.2819 5 12Z"/>
+    </svg>
+);
+
+const GoogleIcon = () => <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M21.805 10.034C21.805 9.389 21.744 8.763 21.624 8.16H12.155V11.69H17.57C17.343 12.915 16.605 13.965 15.511 14.713V17.11H18.954C20.798 15.461 21.805 12.989 21.805 10.034Z" fill="#4285F4"/><path d="M12.155 22.0001C15.011 22.0001 17.383 21.0531 18.954 19.5181L15.511 17.1101C14.605 17.7101 13.482 18.0701 12.155 18.0701C9.49801 18.0701 7.24201 16.3101 6.43101 13.8961L2.86801 13.8961V16.3771C4.44001 19.6571 7.99101 22.0001 12.155 22.0001Z" fill="#34A853"/><path d="M6.43101 13.8967C6.20401 13.2517 6.07601 12.5607 6.07601 11.8337C6.07601 11.1067 6.20401 10.4157 6.43101 9.77075V7.28875L2.86801 7.28875C2.13701 8.71675 1.73201 10.2217 1.73201 11.8337C1.73201 13.4457 2.13701 14.9507 2.86801 16.3787L6.43101 13.8967Z" fill="#FBBC05"/><path d="M12.155 6.5999C13.596 6.5999 14.702 7.0869 15.581 7.9239L19.029 4.6999C17.378 3.1679 15.006 2.2669 12.155 2.2669C7.99101 2.2669 4.44001 4.6109 2.86801 7.2889L6.43101 9.7709C7.24201 7.3569 9.49801 6.5999 12.155 6.5999Z" fill="#EA4335"/></svg>;
+
 
 export default function LoginPage() {
-  const router = useRouter(); // Keep for other routing needs if any
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  
+  const { login, error: authErrorFromContext, isLoading: authIsLoading, isAuthenticated, isAuthReady, clearError } = useAuth(); 
+  const router = useRouter();
   const searchParams = useSearchParams();
-  // isAuthReady and isAuthenticated are used by the AuthContext to handle initial redirects if already logged in.
-  // We don't need an additional redirect here if AuthContext handles it.
-  const { login, isLoading: authIsLoading, isAuthReady, isAuthenticated } = useAuth();
 
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [formSuccessMessage, setFormSuccessMessage] = useState<string | null>(null);
 
-  // This useEffect was causing the redirect to /dashboard, overriding AuthContext.
-  // We can remove it because AuthContext's login function now dictates the post-login redirect.
-  // If a user who is already logged in lands on /login, ProtectedRoute logic
-  // on other pages or a check in AuthProvider's initial load should handle redirecting them away.
-  /*
   useEffect(() => {
     if (isAuthReady && isAuthenticated) {
-      // If we want to redirect from /login if already authenticated,
-      // this logic should ideally be in a higher order component or layout for (auth) routes,
-      // or handled by AuthProvider's initial load check.
-      // For now, removing it to ensure AuthContext's redirect is primary.
-      // router.push('/dashboard'); // PROBLEM LINE
+      router.push('/home'); 
     }
   }, [isAuthReady, isAuthenticated, router]);
-  */
 
-  // This useEffect handles the success message from signup
   useEffect(() => {
     if (searchParams && searchParams.get('signupSuccess') === 'true') {
-      setSuccessMessage('Signup successful! Please log in.');
-      router.replace('/login', { scroll: false }); // Clean URL
+      setFormSuccessMessage('Signup successful! Please log in.');
+      router.replace('/login', { scroll: false }); 
     }
   }, [searchParams, router]);
 
+  useEffect(() => {
+    setFormError(authErrorFromContext);
+  }, [authErrorFromContext]);
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setError(null);
-    setSuccessMessage(null);
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    setFormError(null); 
+    setFormSuccessMessage(null);
+    if (clearError) clearError();
 
     try {
       await login({ email, password });
-      // Redirection is now fully handled by AuthContext's login function.
     } catch (err: unknown) {
-      if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError('An unexpected error occurred during login.');
-      }
+      console.error("LoginPage: Error during login attempt", err);
     }
   };
 
-  // If auth is not ready yet, and user is not authenticated, show loading.
-  // If auth is ready AND user IS authenticated, AuthContext's login or ProtectedRoute should have redirected.
-  // This page should primarily be for unauthenticated users.
-  if (!isAuthReady && !isAuthenticated) { // Show loading if initial auth check isn't done
+  if (!isAuthReady) {
     return (
-        <div className="flex items-center justify-center min-h-screen">
-            <p>Loading login page...</p>
+        <div className="flex items-center justify-center min-h-screen bg-slate-900">
+            <p className="text-slate-300 text-lg">Loading SocialAdify...</p>
         </div>
     );
   }
-
-  // If auth is ready and user is ALREADY authenticated, they shouldn't really be here.
-  // AuthContext's initial load or ProtectedRoute on other pages should redirect them.
-  // However, to prevent rendering the form if somehow they land here while authenticated:
-  if (isAuthReady && isAuthenticated) {
+   if (isAuthReady && isAuthenticated) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <p>You are already logged in. Redirecting...</p>
-        {/* router.push('/account') could be called here too, but AuthProvider should handle it */}
+      <div className="flex items-center justify-center min-h-screen bg-slate-900">
+        <p className="text-slate-300 text-lg">Already logged in. Redirecting...</p>
       </div>
     );
   }
-
 
   return (
-    <div className="flex min-h-screen">
-      <div className="flex-1 hidden lg:flex items-center justify-center bg-gradient-to-br from-indigo-600 to-blue-500 text-white p-12">
-        <div>
-          <h1 className="text-5xl font-bold mb-6">SocialAdify</h1>
-          <p className="text-xl">Manage your social ads efficiently.</p>
-        </div>
-      </div>
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 sm:p-12 bg-gray-50">
-        <div className="w-full max-w-md space-y-8">
-          <div>
-            <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-              Log in to your account
+    <div className="min-h-screen flex flex-col lg:flex-row bg-slate-50 lg:overflow-hidden"> {/* Prevent scroll on lg */}
+      {/* Right Form Panel (Order changed to be on the left for lg screens) */}
+      <div className="w-full lg:w-1/2 flex flex-col items-center justify-center p-6 py-10 sm:p-10 md:p-16 bg-white order-first"> {/* order-first makes it appear on left */}
+        <div className="w-full max-w-sm space-y-6">
+          <div className="text-left">
+            <Link href="/" className="inline-flex items-center gap-2 mb-6 lg:hidden"> {/* Logo for mobile, hidden on lg */}
+                <AppLogo className="w-8 h-8 text-indigo-600" />
+                <span className="text-2xl font-bold text-slate-800">SocialAdify</span>
+            </Link>
+            <h2 className="text-2xl sm:text-3xl font-bold text-slate-800 tracking-tight">
+              Welcome Back!
             </h2>
+            <p className="mt-2 text-sm text-slate-500">
+              Don&apos;t have an account?{' '}
+              <Link href="/signup" className="font-medium text-indigo-600 hover:text-indigo-500 hover:underline">
+                Create one now
+              </Link>
+            </p>
           </div>
-          {successMessage && (
-            <div className="p-3 text-sm text-green-700 bg-green-100 rounded-md">
-              {successMessage}
+
+          {formSuccessMessage && (
+            <div className="p-3 text-sm text-green-700 bg-green-100 border border-green-200 rounded-lg shadow-sm">
+              {formSuccessMessage}
             </div>
           )}
-          <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-            <input type="hidden" name="remember" defaultValue="true" />
-            <div className="rounded-md shadow-sm -space-y-px">
-              <div>
-                <label htmlFor="email-address" className="sr-only">Email address</label>
-                <input
-                  id="email-address"
-                  name="email"
-                  type="email"
-                  autoComplete="email"
-                  required
-                  className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                  placeholder="Email address"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  disabled={authIsLoading}
-                />
-              </div>
-              <div>
-                <label htmlFor="password" className="sr-only">Password</label>
-                <input
-                  id="password"
-                  name="password"
-                  type="password"
-                  autoComplete="current-password"
-                  required
-                  className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                  placeholder="Password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  disabled={authIsLoading}
-                />
-              </div>
+          {formError && (
+            <div className="p-3 text-sm text-red-700 bg-red-100 border border-red-200 rounded-lg shadow-sm">
+              {formError}
             </div>
-            <div className="flex items-center justify-between">
-              <div className="text-sm">
-                <a href="#" className="font-medium text-indigo-600 hover:text-indigo-500">
-                  Forgot your password?
-                </a>
-              </div>
-            </div>
-            {error && <p className="text-sm text-red-600 text-center">{error}</p>}
+          )}
+
+          <form className="space-y-5" onSubmit={handleSubmit}>
             <div>
-              <button
-                type="submit"
-                disabled={authIsLoading}
-                className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
-              >
-                {authIsLoading ? 'Logging in...' : 'Log in'}
-              </button>
+              <label htmlFor="email-address" className="block text-xs font-semibold text-slate-600 mb-1.5 tracking-wide">
+                Email Address
+              </label>
+              <input
+                id="email-address" name="email" type="email" autoComplete="email" required
+                className="w-full px-4 py-3 text-sm border border-slate-300 rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition text-slate-800 placeholder-slate-400 bg-slate-50"
+                placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} disabled={authIsLoading}
+              />
             </div>
+
+            <div>
+              <label htmlFor="password" className="block text-xs font-semibold text-slate-600 mb-1.5 tracking-wide">Password</label>
+              <input
+                id="password" name="password" type="password" autoComplete="current-password" required
+                className="w-full px-4 py-3 text-sm border border-slate-300 rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition text-slate-800 placeholder-slate-400 bg-slate-50"
+                placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} disabled={authIsLoading}
+              />
+            </div>
+
+            <div className="flex items-center justify-between text-xs mt-3">
+                <div className="flex items-center">
+                    <input id="remember-me" name="remember-me" type="checkbox" className="h-4 w-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500 focus:ring-offset-1" />
+                    <label htmlFor="remember-me" className="ml-2 block text-slate-600">Remember me</label>
+                </div>
+                <Link href="#" className="font-medium text-indigo-600 hover:text-indigo-500 hover:underline">
+                    Forgot password?
+                </Link>
+            </div>
+
+            <button
+              type="submit"
+              disabled={authIsLoading}
+              className="w-full py-3 mt-2 px-4 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition duration-150 ease-in-out disabled:opacity-70 disabled:cursor-not-allowed text-base"
+            >
+              {authIsLoading ? "Logging in..." : "Log In"}
+            </button>
           </form>
-          <div className="mt-6">
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-300" />
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-gray-50 text-gray-500">Or</span>
-              </div>
-            </div>
-            <div className="mt-6">
-              <button
-                type="button"
-                disabled={authIsLoading}
-                className="w-full inline-flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
-              >
-                <span className="sr-only">Sign in with Google</span>
-                Sign in with Google
-              </button>
-            </div>
+
+          <div className="my-6 flex items-center">
+            <div className="flex-grow border-t border-slate-300"></div>
+            <span className="mx-3 text-xs font-medium text-slate-500">OR</span>
+            <div className="flex-grow border-t border-slate-300"></div>
           </div>
-          <p className="mt-6 text-sm text-center text-gray-600">
-            New to SocialAdify?{' '}
-            <Link href="/signup" className="font-medium text-indigo-600 hover:text-indigo-500">
-              Sign up
-            </Link>
+
+          <button 
+              type="button" 
+              className="w-full flex items-center justify-center px-4 py-2.5 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1 transition shadow-sm disabled:opacity-70" 
+              disabled={authIsLoading}
+          >
+              <GoogleIcon /> <span className="ml-2.5">Continue with Google</span>
+          </button>
+        </div>
+      </div>
+      
+      {/* Left Branding Panel (Order changed to be on the right for lg screens) */}
+      <div className="w-full lg:w-1/2 bg-slate-900 text-white p-8 sm:p-12 md:p-20 flex-col justify-center items-center lg:items-start text-center lg:text-left order-last relative overflow-hidden hidden lg:flex"> {/* hidden on small, flex on lg */}
+        {/* Abstract background elements */}
+        <div className="absolute top-0 left-0 w-72 h-72 bg-indigo-500 opacity-20 rounded-full -translate-x-1/2 -translate-y-1/2 filter blur-3xl"></div>
+        <div className="absolute bottom-0 right-0 w-80 h-80 bg-purple-600 opacity-20 rounded-full translate-x-1/2 translate-y-1/2 filter blur-3xl"></div>
+        
+        <div className="relative z-10 max-w-md xl:max-w-lg">
+          <Link href="/" className="inline-flex items-center gap-3 mb-10 lg:mb-12">
+            <AppLogo className="w-12 h-12 text-indigo-400"/>
+            <span className="text-3xl lg:text-4xl font-bold tracking-tighter">SocialAdify</span>
+          </Link>
+          <h1 className="text-4xl md:text-5xl font-bold leading-tight mb-6 text-transparent bg-clip-text bg-gradient-to-r from-indigo-300 via-purple-300 to-pink-300">
+            Unlock Your Ad Potential.
+          </h1>
+          <p className="text-lg md:text-xl text-slate-300 opacity-90 mb-10 leading-relaxed">
+            Log in to access AI-powered insights, streamline campaign management, and achieve remarkable results.
           </p>
+           <div className="space-y-3 text-slate-300 text-sm">
+            <p className="flex items-center"><span className="text-indigo-400 mr-2.5">✓</span> Smart Analytics & Reporting</p>
+            <p className="flex items-center"><span className="text-purple-400 mr-2.5">✓</span> AI-Driven Ad Suggestions</p>
+            <p className="flex items-center"><span className="text-pink-400 mr-2.5">✓</span> Effortless Campaign Management</p>
+          </div>
         </div>
       </div>
     </div>

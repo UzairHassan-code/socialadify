@@ -1,9 +1,9 @@
 # D:\socialadify\backend\app\schemas\user.py
-from pydantic import BaseModel, EmailStr, Field, BeforeValidator, ConfigDict
+from pydantic import BaseModel, EmailStr, Field, ConfigDict, BeforeValidator
 from typing import Optional, Annotated, Any
-from bson import ObjectId # For MongoDB ObjectId handling
+from bson import ObjectId
 
-# --- Custom ObjectId Handling for Pydantic v2 ---
+# --- Custom ObjectId Handling ---
 def validate_object_id(v: Any) -> ObjectId:
     if isinstance(v, ObjectId):
         return v
@@ -17,64 +17,53 @@ PyObjectId = Annotated[ObjectId, BeforeValidator(validate_object_id)]
 
 # --- User Schemas ---
 
-# Properties to receive via API on user creation
-class UserCreate(BaseModel):
+class UserBase(BaseModel):
     email: EmailStr
+    firstname: Optional[str] = None
+    lastname: Optional[str] = None
+    # profile_picture_url was removed
+
+class UserCreate(UserBase):
     password: str
-    firstname: str = Field(..., min_length=1)
+    # Ensure firstname and lastname are required for creation if desired
+    firstname: str = Field(..., min_length=1) 
     lastname: str = Field(..., min_length=1)
-    # age: int = Field(..., gt=0) # REMOVED
-    # university_name: str = Field(...) # REMOVED
 
-# Properties to receive via API on user login
-class UserLogin(BaseModel):
-    email: EmailStr 
-    password: str
+class UserUpdate(BaseModel): # Schema for update payload
+    firstname: Optional[str] = Field(None, min_length=1)
+    lastname: Optional[str] = Field(None, min_length=1)
+    # profile_picture_url was removed
 
-# Properties stored in DB (includes hashed_password)
-class UserInDB(BaseModel):
-    id: PyObjectId = Field(alias="_id") 
-    firstname: str
-    lastname: str
-    email: EmailStr
-    hashed_password: str
-    # age: Optional[int] = None # REMOVED
-    # university_name: Optional[str] = None # REMOVED
-
+class UserInDBBase(UserBase):
+    id: PyObjectId = Field(alias="_id")
+    
     model_config = ConfigDict(
         populate_by_name=True,
-        arbitrary_types_allowed=True,
+        arbitrary_types_allowed=True, # Important for ObjectId
         json_encoders={ObjectId: str}
     )
 
-# Properties to return to client (omits hashed_password)
-class UserPublic(BaseModel):
-    id: str 
-    firstname: str
-    lastname: str
-    email: EmailStr
-    # age: Optional[int] = None # REMOVED
-    # university_name: Optional[str] = None # REMOVED
+class UserInDB(UserInDBBase):
+    hashed_password: str
+    # profile_picture_url was inherited and removed from UserBase
 
-    model_config = ConfigDict(
-        populate_by_name=True
-    )
+class UserPublic(UserBase): # Inherits email, firstname, lastname from UserBase
+    id: str # For public representation, ID is a string
 
     @classmethod
     def from_user_in_db(cls, user_in_db: UserInDB) -> "UserPublic":
         return cls(
             id=str(user_in_db.id),
+            email=user_in_db.email,
             firstname=user_in_db.firstname,
-            lastname=user_in_db.lastname,
-            email=user_in_db.email
-            # age=user_in_db.age, # REMOVED
-            # university_name=user_in_db.university_name # REMOVED
+            lastname=user_in_db.lastname
+            # profile_picture_url was removed
         )
 
-# Token schemas
 class Token(BaseModel):
     access_token: str
     token_type: str
 
 class TokenData(BaseModel):
     email: Optional[str] = None
+# Ensure the file ends cleanly here, with no extra spaces or lines below.

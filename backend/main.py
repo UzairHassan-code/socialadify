@@ -1,40 +1,46 @@
 # D:\socialadify\backend\app\main.py
-
-from fastapi import FastAPI
+from fastapi import FastAPI # Ensure no leading space on this line
 from fastapi.middleware.cors import CORSMiddleware
-# from dotenv import load_dotenv # Usually handled by config.py or session.py
 from contextlib import asynccontextmanager
+# Removed: from fastapi.staticfiles import StaticFiles
+# Removed: from pathlib import Path
 
-# Import routers from both features
 from app.api.auth.auth_router import router as auth_router
-from app.api.insights.router import router as insights_router # Make sure this path is correct
+from app.api.insights.router import router as insights_router
+from app.api.captions.router import router as captions_router # New import
+from app.db.session import connect_to_mongo, close_mongo_connection
+import logging # Added for logging configuration
 
-# Import database connection handlers from the auth feature
-from app.db.session import connect_to_mongo, close_mongo_connection # Make sure this path is correct
+# Removed: BASE_DIR and STATIC_DIR definitions
 
-# Lifespan manager for database connection (from auth feature)
+# Configure basic logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    print("Application startup: Initializing resources...")
-    await connect_to_mongo() # Connect to DB on startup
-    yield # Application runs here
-    print("Application shutdown: Cleaning up resources...")
-    await close_mongo_connection() # Disconnect from DB on shutdown
+    logger.info("Application startup: Initializing resources...")
+    # Removed: STATIC_DIR.mkdir(parents=True, exist_ok=True)
+    await connect_to_mongo()
+    yield
+    logger.info("Application shutdown: Cleaning up resources...")
+    await close_mongo_connection()
 
-# Initialize FastAPI app with lifespan manager and a general title
 app = FastAPI(
-    title="SocialAdify API (Merged)",
-    description="API for Social Media and Ad Management Platform",
-    version="0.1.0",
-    lifespan=lifespan # Apply the lifespan manager
+    title="SocialAdify API", # Simplified title
+    description="API for Social Media Ad Management and AI Content Generation Platform",
+    version="0.2.0", # Incremented version
+    lifespan=lifespan
 )
 
-# CORS Middleware Setup
-origins = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-]
+# Removed: app.mount("/static", ...)
 
+origins = [
+    "http://localhost:3000", # Standard Next.js dev port
+    "http://127.0.0.1:3000",
+    # Add other origins if needed (e.g., deployed frontend URL)
+]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
@@ -43,14 +49,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include Routers from both features
 app.include_router(auth_router, prefix="/auth", tags=["Authentication"])
-app.include_router(insights_router, prefix="/insights", tags=["Insights & AI Suggestions"])
+app.include_router(insights_router, prefix="/insights", tags=["Insights & Ad Analytics"])
+app.include_router(captions_router, prefix="/captions", tags=["AI Caption Generation"]) # New router included
 
 @app.get("/")
 async def read_root():
-    return {"message": "Welcome to the SocialAdify Backend (Merged)!"}
+    return {"message": "Welcome to the SocialAdify Backend API!"} # Updated message
 
 @app.get("/health")
 async def health_check():
     return {"status": "healthy"}
+# Ensure the file ends cleanly here, typically with a newline character.
+# No extra spaces or misaligned indentation below this line.
+
