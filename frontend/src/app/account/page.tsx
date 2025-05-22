@@ -3,26 +3,38 @@
 
 import { useAuth } from '@/context/AuthContext';
 import Link from 'next/link';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react'; // Added useEffect
 import EditProfileModal from '@/components/EditProfileModal';
 import Image from 'next/image';
-import { apiUpdateUserProfile, UserProfileUpdateData } from '@/services/authService';
 
 // Simple SVG Icons
 const UserCircleIcon = ({ className }: { className?: string }) => ( <svg className={className || "w-6 h-6"} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M17.982 18.725A7.488 7.488 0 0012 15.75a7.488 7.488 0 00-5.982 2.975m11.963 0a9 9 0 10-11.963 0m11.963 0A8.966 8.966 0 0112 21a8.966 8.966 0 01-5.982-2.275M15 9.75a3 3 0 11-6 0 3 3 0 016 0z" /></svg> );
 const EditIcon = ({ className }: { className?: string }) => ( <svg className={className || "w-5 h-5"} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" /></svg> );
 const HomeIcon = ({ className }: { className?: string }) => ( <svg className={className || "w-5 h-5"} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"> <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125A2.25 2.25 0 0021 18.75V9.75M8.25 21h7.5" /> </svg> );
 const LogoutIcon = ({ className }: { className?: string }) => ( <svg className={className || "w-5 h-5"} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"> <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" /> </svg> );
-const HistoryIcon = ({ className = "w-6 h-6" }: { className?: string }) => ( // Re-added HistoryIcon
+const HistoryIcon = ({ className = "w-6 h-6" }: { className?: string }) => ( 
     <svg className={className} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
     </svg>
 );
 
+const API_BASE_URL_STATIC = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
+
 
 export default function AccountPage() {
-  const { user, logout, isAuthenticated, isAuthReady, token, fetchAndUpdateUser } = useAuth();
+  const { user, logout, isAuthenticated, isAuthReady } = useAuth(); 
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+
+  // --- DEBUGGING LOGS ---
+  useEffect(() => {
+    if (user) {
+      console.log("AccountPage - User data from context:", JSON.stringify(user, null, 2));
+      console.log("AccountPage - Raw profile_picture_url from context:", user.profile_picture_url);
+    } else {
+      console.log("AccountPage - User data from context is null.");
+    }
+  }, [user]);
+  // --- END DEBUGGING LOGS ---
 
   if (!isAuthReady) { 
     return ( <div className="flex items-center justify-center min-h-screen"><p>Loading account...</p></div> ); 
@@ -32,17 +44,24 @@ export default function AccountPage() {
    }
 
   const handleLogout = () => { logout(); };
-  const handleProfileUpdate = async (profileData: UserProfileUpdateData): Promise<boolean> => { 
-    if (!token) { alert("Authentication error."); return false; }
-    try {
-      await apiUpdateUserProfile(token, profileData); 
-      await fetchAndUpdateUser(token); 
-      alert("Profile updated successfully!"); return true;
-    } catch (error) {
-      alert(`Update failed: ${error instanceof Error ? error.message : "Unknown error"}`);
-      return false; 
+
+  const rawPicUrlFromUser = user?.profile_picture_url;
+  const profilePicUrl = 
+    rawPicUrlFromUser && typeof rawPicUrlFromUser === 'string' && rawPicUrlFromUser.trim() !== '' 
+      ? (rawPicUrlFromUser.startsWith('http') 
+          ? rawPicUrlFromUser 
+          : `${API_BASE_URL_STATIC}${rawPicUrlFromUser}`)
+      : null;
+
+  // --- MORE DEBUGGING LOGS ---
+  if (isAuthReady && isAuthenticated) {
+    console.log("AccountPage - API_BASE_URL_STATIC:", API_BASE_URL_STATIC);
+    console.log("AccountPage - Constructed profilePicUrl for Image component:", profilePicUrl);
+    if (user && user.profile_picture_url && user.profile_picture_url.trim() === '') {
+        console.warn("AccountPage - profile_picture_url from user context is an EMPTY STRING.");
     }
-  };
+  }
+  // --- END MORE DEBUGGING LOGS ---
 
   return (
     <>
@@ -62,12 +81,19 @@ export default function AccountPage() {
             <div className="flex flex-col sm:flex-row items-center">
               <div className="flex-shrink-0 mb-6 sm:mb-0 sm:mr-8 relative">
                 <div className="w-24 h-24 sm:w-32 sm:h-32 bg-indigo-500/30 rounded-full flex items-center justify-center overflow-hidden ring-2 ring-indigo-400/50">
-                  {user?.profile_picture_url ? (
+                  {profilePicUrl ? (
                     <Image 
-                        src={user.profile_picture_url.startsWith('/') ? `${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000'}${user.profile_picture_url}` : user.profile_picture_url} 
-                        alt={`${user.firstname || ''} ${user.lastname || ''}'s profile picture`} 
-                        layout="fill" objectFit="cover" className="rounded-full"
-                        onError={(e) => { (e.target as HTMLImageElement).src = 'https://placehold.co/128x128/3730A3/E0E7FF?text=User';}}
+                        key={profilePicUrl} // Adding a key might help Next.js Image re-render if URL changes
+                        src={profilePicUrl} 
+                        alt={`${user?.firstname || ''} ${user?.lastname || ''}'s profile picture`} 
+                        width={128} 
+                        height={128}
+                        className="rounded-full object-cover w-full h-full" // Ensure w-full h-full for object-cover
+                        onError={(e) => { 
+                            console.error("Image onError triggered for URL:", profilePicUrl, e);
+                            (e.target as HTMLImageElement).src = 'https://placehold.co/128x128/3730A3/E0E7FF?text=Error';
+                        }}
+                        unoptimized={process.env.NODE_ENV === 'development'} // Useful for debugging local images
                     />
                   ) : (
                     <UserCircleIcon className="w-16 h-16 sm:w-20 sm:h-20 text-indigo-300" />
@@ -107,7 +133,7 @@ export default function AccountPage() {
             </Link>
             <button
               onClick={handleLogout}
-              className="group w-full p-6 bg-slate-800/60 backdrop-blur-md shadow-xl rounded-2xl hover:bg-slate-700/80 hover:border-red-500/70 border border-slate-700 transition-all duration-300 ease-in-out transform hover:-translate-y-1 text-left md:col-span-2" // Span across 2 columns on md+
+              className="group w-full p-6 bg-slate-800/60 backdrop-blur-md shadow-xl rounded-2xl hover:bg-slate-700/80 hover:border-red-500/70 border border-slate-700 transition-all duration-300 ease-in-out transform hover:-translate-y-1 text-left md:col-span-2"
             >
               <div className="flex items-center mb-2">
                 <LogoutIcon className="w-6 h-6 text-red-500 mr-3 group-hover:text-red-400 transition-colors" />
@@ -138,7 +164,6 @@ export default function AccountPage() {
         isOpen={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
         currentUser={user}
-        onProfileUpdate={handleProfileUpdate}
       />
     </>
   );

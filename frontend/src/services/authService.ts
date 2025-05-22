@@ -24,15 +24,16 @@ export interface UserPublic {
   firstname: string;
   lastname: string;
   email: string;
-  profile_picture_url?: string; // CORRECTED: Changed from profilePictureUrl to profile_picture_url
+  profile_picture_url?: string | null; 
 }
 
-// Data structure for updating user profile (text fields only)
-export interface UserProfileUpdateData {
-    firstname?: string;
-    lastname?: string;
+export interface UserProfileUpdateData { 
+  firstname?: string;
+  lastname?: string;
+  new_email?: string; // Added new_email
 }
 
+// --- Error Handling ---
 async function handleApiError(response: Response, defaultErrorMessage: string): Promise<never> {
   let processedErrorMessage = defaultErrorMessage;
   console.error(`AUTH_SERVICE_HANDLE_ERROR: Status: ${response.status}, Content-Type: ${response.headers.get('Content-Type')}`);
@@ -54,11 +55,11 @@ async function handleApiError(response: Response, defaultErrorMessage: string): 
         } else if (typeof detail === 'string') {
           processedErrorMessage = detail;
         } else if (typeof detail === 'object' && detail !== null) {
-           if ('msg' in detail && typeof (detail as {msg: string}).msg === 'string') {
-            processedErrorMessage = (detail as {msg: string}).msg;
-          } else {
-            processedErrorMessage = JSON.stringify(detail);
-          }
+            if ('msg' in detail && typeof (detail as {msg: string}).msg === 'string') {
+             processedErrorMessage = (detail as {msg: string}).msg;
+           } else {
+             processedErrorMessage = JSON.stringify(detail);
+           }
         } else if (responseText) {
           processedErrorMessage = responseText;
         }
@@ -77,6 +78,7 @@ async function handleApiError(response: Response, defaultErrorMessage: string): 
   console.error("AUTH_SERVICE_THROWING_ERROR_MESSAGE:", processedErrorMessage);
   throw new Error(processedErrorMessage);
 }
+
 
 export async function signupUser(userData: SignupData): Promise<UserPublic> {
   console.log("Attempting signup with data:", userData);
@@ -118,22 +120,50 @@ export async function getUserProfile(token: string): Promise<UserPublic> {
   return data;
 }
 
-export async function apiUpdateUserProfile(token: string, profileData: UserProfileUpdateData): Promise<UserPublic> {
-  console.log("authService: Attempting to update user profile with data:", profileData);
+export async function apiUpdateUserProfileText(token: string, profileData: UserProfileUpdateData): Promise<UserPublic> {
+  console.log("authService: Attempting to update user profile text/email with data:", profileData);
+  
+  const formData = new URLSearchParams();
+  if (profileData.firstname !== undefined) formData.append('firstname', profileData.firstname);
+  if (profileData.lastname !== undefined) formData.append('lastname', profileData.lastname);
+  if (profileData.new_email !== undefined) formData.append('new_email', profileData.new_email); // Add new_email
+
   const response = await fetch(`${API_BASE_URL}/auth/users/me/profile`, {
     method: 'PUT',
     headers: {
       'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json',
+      'Content-Type': 'application/x-www-form-urlencoded', 
     },
-    body: JSON.stringify(profileData),
+    body: formData.toString(), 
   });
 
   if (!response.ok) {
-    console.error(`authService: apiUpdateUserProfile failed with status ${response.status}`);
-    return handleApiError(response, 'Failed to update profile.');
+    console.error(`authService: apiUpdateUserProfileText failed with status ${response.status}`);
+    return handleApiError(response, 'Failed to update profile information.');
   }
   const data: UserPublic = await response.json();
-  console.log("authService: User profile updated successfully:", data);
+  console.log("authService: User profile information updated successfully:", data);
   return data;
+}
+
+export async function apiUploadProfilePicture(token: string, imageFile: File): Promise<UserPublic> {
+    console.log("authService: Attempting to upload profile picture.");
+    const formData = new FormData();
+    formData.append('profile_picture', imageFile); 
+
+    const response = await fetch(`${API_BASE_URL}/auth/users/me/profile-picture`, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+        },
+        body: formData,
+    });
+
+    if (!response.ok) {
+        console.error(`authService: apiUploadProfilePicture failed with status ${response.status}`);
+        return handleApiError(response, 'Failed to upload profile picture.');
+    }
+    const data: UserPublic = await response.json();
+    console.log("authService: Profile picture uploaded successfully:", data);
+    return data;
 }
