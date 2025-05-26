@@ -2,7 +2,8 @@
 from pydantic import BaseModel, EmailStr, Field, ConfigDict, BeforeValidator, field_validator
 from typing import Optional, Annotated, Any
 from bson import ObjectId
-import re # Import the regular expression module
+import re 
+from datetime import datetime 
 
 # --- Allowed Email Domains ---
 ALLOWED_EMAIL_DOMAINS = {"gmail.com", "yahoo.com", "outlook.com"}
@@ -23,11 +24,11 @@ def validate_password_complexity(password: str) -> str:
         raise ValueError("Password must be at least 8 characters long.")
     if not re.search(r"[A-Z]", password):
         raise ValueError("Password must contain at least one uppercase letter.")
-    if not re.search(r"[a-z]", password): # Good practice to also ensure lowercase
+    if not re.search(r"[a-z]", password): 
         raise ValueError("Password must contain at least one lowercase letter.")
-    if not re.search(r"[0-9]", password): # Good practice to also ensure a digit
+    if not re.search(r"[0-9]", password): 
         raise ValueError("Password must contain at least one digit.")
-    if not re.search(r"[!@#$%^&*()_+\-=\[\]{};':\"\\|,.<>\/?~`]", password): # Common special characters
+    if not re.search(r"[!@#$%^&*()_+\-=\[\]{};':\"\\|,.<>\/?~`]", password): 
         raise ValueError("Password must contain at least one special character (e.g., !@#$%^&*).")
     return password
 
@@ -44,13 +45,13 @@ def validate_object_id(v: Any) -> ObjectId:
 PyObjectId = Annotated[ObjectId, BeforeValidator(validate_object_id)]
 
 class UserBase(BaseModel):
+    email: EmailStr 
     firstname: Optional[str] = None
     lastname: Optional[str] = None
     profile_picture_url: Optional[str] = None 
 
 class UserCreate(UserBase):
-    email: EmailStr 
-    password: str = Field(..., min_length=8) # Keep min_length here for initial Pydantic check
+    password: str = Field(..., min_length=8) 
     firstname: str = Field(..., min_length=1) 
     lastname: str = Field(..., min_length=1)
 
@@ -79,20 +80,20 @@ class UserUpdate(BaseModel):
 
 
 class UserInDBBase(UserBase): 
-    email: EmailStr 
     id: PyObjectId = Field(alias="_id")
+    password_reset_token: Optional[str] = None
+    password_reset_token_expires_at: Optional[datetime] = None
     
     model_config = ConfigDict(
         populate_by_name=True,
         arbitrary_types_allowed=True, 
-        json_encoders={ObjectId: str}
+        json_encoders={ObjectId: str, datetime: lambda dt: dt.isoformat()} 
     )
 
 class UserInDB(UserInDBBase): 
     hashed_password: str
 
 class UserPublic(UserBase): 
-    email: EmailStr 
     id: str 
 
     @classmethod
@@ -111,3 +112,27 @@ class Token(BaseModel):
 
 class TokenData(BaseModel):
     email: Optional[str] = None
+
+class RequestPasswordResetPayload(BaseModel):
+    email: EmailStr
+
+class ResetPasswordPayload(BaseModel):
+    token: str
+    new_password: str = Field(..., min_length=8)
+
+    @field_validator('new_password')
+    @classmethod
+    def check_new_password_complexity(cls, value: str) -> str:
+        return validate_password_complexity(value)
+
+# --- New Schema for Change Password ---
+class ChangePasswordPayload(BaseModel):
+    current_password: str
+    new_password: str = Field(..., min_length=8)
+
+    @field_validator('new_password')
+    @classmethod
+    def check_new_password_complexity_on_change(cls, value: str) -> str:
+        # Re-using the existing complexity validator
+        return validate_password_complexity(value)
+

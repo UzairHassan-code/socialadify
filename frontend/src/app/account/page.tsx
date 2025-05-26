@@ -3,8 +3,9 @@
 
 import { useAuth } from '@/context/AuthContext';
 import Link from 'next/link';
-import React, { useState, useEffect } from 'react'; // Added useEffect
+import React, { useState, useEffect } from 'react';
 import EditProfileModal from '@/components/EditProfileModal';
+import ChangePasswordModal from '@/components/ChangePasswordModal'; // New Import
 import Image from 'next/image';
 
 // Simple SVG Icons
@@ -24,8 +25,8 @@ const API_BASE_URL_STATIC = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://loca
 export default function AccountPage() {
   const { user, logout, isAuthenticated, isAuthReady } = useAuth(); 
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isChangePasswordModalOpen, setIsChangePasswordModalOpen] = useState(false); // New state
 
-  // --- DEBUGGING LOGS ---
   useEffect(() => {
     if (user) {
       console.log("AccountPage - User data from context:", JSON.stringify(user, null, 2));
@@ -34,7 +35,6 @@ export default function AccountPage() {
       console.log("AccountPage - User data from context is null.");
     }
   }, [user]);
-  // --- END DEBUGGING LOGS ---
 
   if (!isAuthReady) { 
     return ( <div className="flex items-center justify-center min-h-screen"><p>Loading account...</p></div> ); 
@@ -45,15 +45,13 @@ export default function AccountPage() {
 
   const handleLogout = () => { logout(); };
 
-  const rawPicUrlFromUser = user?.profile_picture_url;
   const profilePicUrl = 
-    rawPicUrlFromUser && typeof rawPicUrlFromUser === 'string' && rawPicUrlFromUser.trim() !== '' 
-      ? (rawPicUrlFromUser.startsWith('http') 
-          ? rawPicUrlFromUser 
-          : `${API_BASE_URL_STATIC}${rawPicUrlFromUser}`)
+    user?.profile_picture_url && user.profile_picture_url.trim() !== '' 
+      ? (user.profile_picture_url.startsWith('http') 
+          ? user.profile_picture_url 
+          : `${API_BASE_URL_STATIC}${user.profile_picture_url}`)
       : null;
 
-  // --- MORE DEBUGGING LOGS ---
   if (isAuthReady && isAuthenticated) {
     console.log("AccountPage - API_BASE_URL_STATIC:", API_BASE_URL_STATIC);
     console.log("AccountPage - Constructed profilePicUrl for Image component:", profilePicUrl);
@@ -61,7 +59,6 @@ export default function AccountPage() {
         console.warn("AccountPage - profile_picture_url from user context is an EMPTY STRING.");
     }
   }
-  // --- END MORE DEBUGGING LOGS ---
 
   return (
     <>
@@ -83,17 +80,17 @@ export default function AccountPage() {
                 <div className="w-24 h-24 sm:w-32 sm:h-32 bg-indigo-500/30 rounded-full flex items-center justify-center overflow-hidden ring-2 ring-indigo-400/50">
                   {profilePicUrl ? (
                     <Image 
-                        key={profilePicUrl} // Adding a key might help Next.js Image re-render if URL changes
+                        key={profilePicUrl} 
                         src={profilePicUrl} 
                         alt={`${user?.firstname || ''} ${user?.lastname || ''}'s profile picture`} 
                         width={128} 
                         height={128}
-                        className="rounded-full object-cover w-full h-full" // Ensure w-full h-full for object-cover
+                        className="rounded-full object-cover w-full h-full" 
                         onError={(e) => { 
                             console.error("Image onError triggered for URL:", profilePicUrl, e);
                             (e.target as HTMLImageElement).src = 'https://placehold.co/128x128/3730A3/E0E7FF?text=Error';
                         }}
-                        unoptimized={process.env.NODE_ENV === 'development'} // Useful for debugging local images
+                        unoptimized={process.env.NODE_ENV === 'development'} 
                     />
                   ) : (
                     <UserCircleIcon className="w-16 h-16 sm:w-20 sm:h-20 text-indigo-300" />
@@ -147,8 +144,11 @@ export default function AccountPage() {
             <div className="bg-slate-800/60 backdrop-blur-md shadow-xl rounded-2xl p-6 sm:p-8 border border-slate-700">
               <h3 className="text-lg font-semibold text-slate-100 mb-1">Security Settings</h3>
               <p className="text-sm text-slate-400 mb-4">Manage your password and account security.</p>
-              <button className="px-4 py-2 text-xs font-medium text-indigo-200 bg-indigo-600/70 hover:bg-indigo-600/90 rounded-md transition-colors disabled:opacity-50" disabled>
-                Change Password (Coming Soon)
+              <button 
+                onClick={() => setIsChangePasswordModalOpen(true)} // Open the new modal
+                className="px-4 py-2 text-xs font-medium text-indigo-200 bg-indigo-600/70 hover:bg-indigo-600/90 rounded-md transition-colors"
+              >
+                Change Password
               </button>
             </div>
             <div className="bg-slate-800/60 backdrop-blur-md shadow-xl rounded-2xl p-6 sm:p-8 border border-slate-700">
@@ -164,6 +164,10 @@ export default function AccountPage() {
         isOpen={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
         currentUser={user}
+      />
+      <ChangePasswordModal // Add the new modal instance
+        isOpen={isChangePasswordModalOpen}
+        onClose={() => setIsChangePasswordModalOpen(false)}
       />
     </>
   );
