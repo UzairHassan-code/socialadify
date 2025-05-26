@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 
 from app.schemas.user import UserCreate, UserInDB, UserPublic, UserUpdate 
 from app.core.security import get_password_hash, verify_password
+from app.crud.caption import delete_captions_by_user_id # Import function to delete related captions
 
 USERS_COLLECTION = "users"
 logging.basicConfig(level=logging.INFO) 
@@ -117,30 +118,22 @@ async def get_user_by_password_reset_token(db: AsyncIOMotorDatabase, token: str)
         return UserInDB(**user_data)
     return None
 
-async def update_user_password(db: AsyncIOMotorDatabase, user: UserInDB, new_password: str) -> bool: # Used by reset flow
+async def update_user_password(db: AsyncIOMotorDatabase, user: UserInDB, new_password: str) -> bool: 
     # ... (existing code)
     users_collection: AsyncIOMotorCollection = db[USERS_COLLECTION]
     hashed_password = get_password_hash(new_password)
     result = await users_collection.update_one(
         {"_id": user.id},
-        {"$set": {
-            "hashed_password": hashed_password,
-            "password_reset_token": None, 
-            "password_reset_token_expires_at": None 
-        }}
+        {"$set": {"hashed_password": hashed_password, "password_reset_token": None, "password_reset_token_expires_at": None }}
     )
     return result.modified_count == 1
 
-# --- New CRUD function for Changing Password by authenticated user ---
 async def change_password(db: AsyncIOMotorDatabase, user: UserInDB, current_password: str, new_password: str) -> bool:
-    """
-    Changes the password for an authenticated user after verifying their current password.
-    """
+    # ... (existing code from previous step)
     logger.info(f"Attempting to change password for user: {user.email}")
     if not verify_password(current_password, user.hashed_password):
         logger.warning(f"Current password verification failed for user: {user.email}")
-        return False # Indicate current password mismatch
-
+        return False 
     users_collection: AsyncIOMotorCollection = db[USERS_COLLECTION]
     new_hashed_password = get_password_hash(new_password)
     result = await users_collection.update_one(
@@ -150,6 +143,48 @@ async def change_password(db: AsyncIOMotorDatabase, user: UserInDB, current_pass
     if result.modified_count == 1:
         logger.info(f"Password changed successfully for user: {user.email}")
         return True
-    
     logger.error(f"Failed to update password in DB for user: {user.email}, though current password was correct.")
-    return False # Should not happen if current password was correct and user exists
+    return False
+
+# --- New CRUD function to delete a user ---
+async def delete_user(db: AsyncIOMotorDatabase, user: UserInDB, current_password_to_verify: str) -> bool:
+    """
+    Deletes a user and their associated data after verifying their current password.
+    """
+    logger.info(f"Attempting to delete account for user: {user.email}")
+    if not verify_password(current_password_to_verify, user.hashed_password):
+        logger.warning(f"Password verification failed for account deletion: user {user.email}")
+        return False # Password mismatch
+
+    users_collection: AsyncIOMotorCollection = db[USERS_COLLECTION]
+    
+    # Step 1: Delete associated data (e.g., captions)
+    # It's good practice to do this first, or within a transaction if your DB supports it.
+    try:
+        deleted_captions_count = await delete_captions_by_user_id(db, user_id=user.id)
+        logger.info(f"Deleted {deleted_captions_count} captions for user {user.email} during account deletion.")
+    except Exception as e:
+        logger.error(f"Error deleting captions for user {user.email} during account deletion: {e}", exc_info=True)
+        # Decide if you want to proceed with user deletion or halt. For now, we'll proceed.
+        # In a production system, you might want to log this for manual cleanup or use transactions.
+
+    # Step 2: Delete the user
+    delete_result = await users_collection.delete_one({"_id": user.id})
+    
+    if delete_result.deleted_count == 1:
+        logger.info(f"User account deleted successfully: {user.email} (ID: {user.id})")
+        # TODO: Consider deleting user's profile picture from static files if it exists.
+        # This would require knowing the profile_picture_url and using os.remove.
+        # Example:
+        # if user.profile_picture_url and user.profile_picture_url.startswith("/static/profile_pics/"):
+        #     filename = user.profile_picture_url.split("/")[-1]
+        #     # Assuming PROFILE_PICS_DIR is accessible here or passed as an argument
+        #     # from app.main import PROFILE_PICS_DIR # (or get from config)
+        #     # file_to_delete = PROFILE_PICS_DIR / filename
+        #     # if file_to_delete.exists():
+        #     #     try: os.remove(file_to_delete); logger.info(f"Deleted profile picture: {file_to_delete}")
+        #     #     except Exception as e_del: logger.error(f"Error deleting profile pic {file_to_delete}: {e_del}")
+        return True
+    
+    logger.error(f"Failed to delete user account from DB for user: {user.email}, though password was correct.")
+    return False # Should ideally not happen if password was correct and user exists.

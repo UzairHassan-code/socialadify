@@ -5,51 +5,43 @@ import { FormEvent, useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { resetPassword } from '@/services/authService';
-// Removed: import { AppLogo } from '@/components/ui/icons'; 
 
 // Define AppLogo directly in the file as a placeholder
 const AppLogo = ({ className = "w-10 h-10 text-indigo-600 dark:text-indigo-400" }: { className?: string }) => (
     <svg className={className} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-        {/* Using a generic circle as a placeholder logo */}
         <circle cx="12" cy="12" r="10" />
-        {/* You can replace this with a more specific SVG path for your logo later */}
-        {/* Example path from other pages (adjust fill/colors as needed):
-        <path fillRule="evenodd" clipRule="evenodd" d="M12 2C17.5228 2 22 6.47715 22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2ZM12 6C9.14344 6 6.79378 7.65981 5.64006 9.99995H8.04005C8.82681 8.78081 10.2993 8 12 8C13.7007 8 15.1732 8.78081 15.9599 9.99995H18.3599C17.2062 7.65981 14.8566 6 12 6ZM12 16C10.2993 16 8.82681 15.2191 8.04005 14H5.64006C6.79378 16.3401 9.14344 18 12 18C14.8566 18 17.2062 16.3401 18.3599 14H15.9599C15.1732 15.2191 13.7007 16 12 16ZM5 12C5 11.7181 5.01793 11.4402 5.05279 11.1667H18.9472C18.9821 11.4402 19 11.7181 19 12C19 12.2819 18.9821 12.5597 18.9472 12.8333H5.05279C5.01793 12.5597 5 12.2819 5 12Z"/>
-        */}
     </svg>
 );
 
 
 // Password validation states for UI feedback
-const PasswordValidationDisplay = ({ password }: { password: string }) => {
-    const validations = {
-      length: password.length >= 8,
-      uppercase: /[A-Z]/.test(password),
-      lowercase: /[a-z]/.test(password),
-      digit: /[0-9]/.test(password),
-      specialChar: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/.test(password),
-    };
-  
-    const CheckIcon = ({className="w-4 h-4 text-green-500"}: {className?: string}) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={className}><path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" /></svg>;
-    const CrossIcon = ({className="w-4 h-4 text-red-500"}: {className?: string}) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={className}><path fillRule="evenodd" d="M4.28 3.22a.75.75 0 00-1.06 1.06L8.94 10l-5.72 5.72a.75.75 0 101.06 1.06L10 11.06l5.72 5.72a.75.75 0 101.06-1.06L11.06 10l5.72-5.72a.75.75 0 00-1.06-1.06L10 8.94 4.28 3.22z" clipRule="evenodd" /></svg>;
+const PasswordValidationDisplay = ({ password, showDetails }: { password?: string; showDetails?: boolean }) => {
+    const criteria = [
+        { label: "At least 8 characters", met: (password?.length || 0) >= 8 },
+        { label: "One uppercase letter (A-Z)", met: /[A-Z]/.test(password || '') },
+        { label: "One lowercase letter (a-z)", met: /[a-z]/.test(password || '') },
+        { label: "One digit (0-9)", met: /[0-9]/.test(password || '') },
+        { label: "One special character (e.g. !@#$)", met: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/.test(password || '') }
+    ];
+
+    const CheckIcon = ({ additionalClassName="" }: {additionalClassName?: string}) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className={`w-3.5 h-3.5 text-green-600 dark:text-green-400 ${additionalClassName}`}><path fillRule="evenodd" d="M12.416 3.376a.75.75 0 0 1 .208 1.04l-5 7.5a.75.75 0 0 1-1.154.114l-3-3a.75.75 0 0 1 1.06-1.06l2.353 2.353 4.493-6.74a.75.75 0 0 1 1.04-.207Z" clipRule="evenodd" /></svg>;
+    const CrossIcon = ({additionalClassName=""}: {additionalClassName?: string}) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className={`w-3.5 h-3.5 text-slate-400 dark:text-slate-500 ${additionalClassName}`}><path d="M5.28 4.22a.75.75 0 0 0-1.06 1.06L6.94 8l-2.72 2.72a.75.75 0 1 0 1.06 1.06L8 9.06l2.72 2.72a.75.75 0 1 0 1.06-1.06L9.06 8l2.72-2.72a.75.75 0 0 0-1.06-1.06L8 6.94 5.28 4.22Z" /></svg>;
+
+    if (!showDetails && password && password.length > 0 && !criteria.every(c => c.met)) {
+        return <p className="mt-1.5 text-xs text-slate-500 dark:text-slate-400">Password must meet complexity requirements.</p>;
+    }
+    if (!showDetails && (!password || password.length === 0)) {
+         return <p className="mt-1.5 text-xs text-slate-500 dark:text-slate-400">Min. 8 chars, incl. uppercase, lowercase, digit, special char.</p>;
+    }
 
     return (
-        <div className="mt-2 space-y-1 text-xs text-slate-500 dark:text-slate-400">
-            <p className={`flex items-center ${validations.length ? 'text-green-600 dark:text-green-400' : 'text-slate-500 dark:text-slate-400'}`}>
-            {validations.length ? <CheckIcon className="mr-1.5"/> : <CrossIcon className="mr-1.5"/>} At least 8 characters
-            </p>
-            <p className={`flex items-center ${validations.uppercase ? 'text-green-600 dark:text-green-400' : 'text-slate-500 dark:text-slate-400'}`}>
-            {validations.uppercase ? <CheckIcon className="mr-1.5"/> : <CrossIcon className="mr-1.5"/>} At least one uppercase letter
-            </p>
-            <p className={`flex items-center ${validations.lowercase ? 'text-green-600 dark:text-green-400' : 'text-slate-500 dark:text-slate-400'}`}>
-            {validations.lowercase ? <CheckIcon className="mr-1.5"/> : <CrossIcon className="mr-1.5"/>} At least one lowercase letter
-            </p>
-            <p className={`flex items-center ${validations.digit ? 'text-green-600 dark:text-green-400' : 'text-slate-500 dark:text-slate-400'}`}>
-            {validations.digit ? <CheckIcon className="mr-1.5"/> : <CrossIcon className="mr-1.5"/>} At least one digit
-            </p>
-            <p className={`flex items-center ${validations.specialChar ? 'text-green-600 dark:text-green-400' : 'text-slate-500 dark:text-slate-400'}`}>
-            {validations.specialChar ? <CheckIcon className="mr-1.5"/> : <CrossIcon className="mr-1.5"/>} At least one special character
-            </p>
+        <div className="mt-2 space-y-0.5 text-xs">
+            {criteria.map(criterion => (
+                <p key={criterion.label} className={`flex items-center ${criterion.met ? 'text-green-600 dark:text-green-400' : 'text-slate-500 dark:text-slate-400'}`}>
+                    {criterion.met ? <CheckIcon additionalClassName="mr-1 flex-shrink-0"/> : <CrossIcon additionalClassName="mr-1 flex-shrink-0"/>}
+                    <span>{criterion.label}</span>
+                </p>
+            ))}
         </div>
     );
 };
@@ -66,6 +58,7 @@ function ResetPasswordPageContent() {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isPasswordValid, setIsPasswordValid] = useState(false);
+  const [showPasswordHints, setShowPasswordHints] = useState(false); // State to control hint visibility
 
 
   useEffect(() => {
@@ -98,11 +91,13 @@ function ResetPasswordPageContent() {
     }
     if (newPassword !== confirmPassword) {
       setError('Passwords do not match.');
+      setShowPasswordHints(true); // Show hints on error
       setIsLoading(false);
       return;
     }
     if (!isPasswordValid) {
         setError('Password does not meet all requirements.');
+        setShowPasswordHints(true); // Show hints on error
         setIsLoading(false);
         return;
     }
@@ -110,9 +105,10 @@ function ResetPasswordPageContent() {
     try {
       const response = await resetPassword({ token, new_password: newPassword });
       setMessage(response.message + " You can now log in.");
-      setTimeout(() => router.push('/login?passwordResetSuccess=true'), 3000); // Added query param
+      setTimeout(() => router.push('/login?passwordResetSuccess=true'), 3000);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'An unexpected error occurred.');
+      setShowPasswordHints(true); // Show hints on error
     } finally {
       setIsLoading(false);
     }
@@ -121,10 +117,18 @@ function ResetPasswordPageContent() {
   const inputClasses = "w-full px-4 py-3 text-sm border rounded-lg shadow-sm outline-none transition text-slate-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 bg-slate-50 dark:bg-slate-700";
   const defaultBorderClasses = "border-slate-300 dark:border-slate-600 focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-indigo-500 dark:focus:border-indigo-400";
   const validInputClasses = "border-green-500 dark:border-green-400 focus:ring-2 focus:ring-green-500 dark:focus:ring-green-400 focus:border-green-500 dark:focus:border-green-400";
-  const passwordInputDynamicClasses = isPasswordValid && newPassword.length > 0 ? validInputClasses : defaultBorderClasses;
+  const errorBorderClasses = "border-red-500 dark:border-red-400 focus:ring-2 focus:ring-red-500 dark:focus:ring-red-400 focus:border-red-500 dark:focus:border-red-400";
 
 
-  if (!token && !isLoading) { // Show error only if not loading and token is definitively missing
+  const passwordInputDynamicClasses = `${inputClasses} ${
+    newPassword.length > 0 && !isPasswordValid && showPasswordHints ? errorBorderClasses : (isPasswordValid ? validInputClasses : defaultBorderClasses)
+  }`;
+  const confirmPasswordInputDynamicClasses = `${inputClasses} ${
+    confirmPassword.length > 0 && newPassword !== confirmPassword && showPasswordHints ? errorBorderClasses : (newPassword === confirmPassword && newPassword.length > 0 && isPasswordValid ? validInputClasses : defaultBorderClasses)
+  }`;
+
+
+  if (!token && !isLoading) { 
     return (
         <div className="w-full max-w-md space-y-8 p-8 bg-white dark:bg-slate-800 shadow-xl rounded-2xl text-center">
             <Link href="/" className="inline-block mb-6">
@@ -163,7 +167,7 @@ function ResetPasswordPageContent() {
           {message}
         </div>
       )}
-      {error && !message && ( // Only show error if there's no success message
+      {error && !message && ( 
         <div className="p-3 text-sm text-red-700 dark:text-red-300 bg-red-100 dark:bg-red-800/30 border border-red-200 dark:border-red-700 rounded-lg shadow-sm">
           {error}
         </div>
@@ -180,13 +184,14 @@ function ResetPasswordPageContent() {
               name="newPassword"
               type="password"
               required
-              className={`${inputClasses} ${passwordInputDynamicClasses}`}
+              className={passwordInputDynamicClasses}
               placeholder="Enter new password"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
+              onFocus={() => setShowPasswordHints(true)} // Show hints on focus
               disabled={isLoading}
             />
-            <PasswordValidationDisplay password={newPassword} />
+            <PasswordValidationDisplay password={newPassword} showDetails={showPasswordHints || (newPassword.length > 0 && !isPasswordValid)} />
           </div>
           <div>
             <label htmlFor="confirm-password" className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5 tracking-wide">
@@ -197,10 +202,11 @@ function ResetPasswordPageContent() {
               name="confirmPassword"
               type="password"
               required
-              className={`${inputClasses} ${newPassword === confirmPassword && newPassword.length > 0 && isPasswordValid ? validInputClasses : defaultBorderClasses}`}
+              className={confirmPasswordInputDynamicClasses}
               placeholder="Confirm new password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
+              onFocus={() => setShowPasswordHints(true)} // Show hints on focus
               disabled={isLoading}
             />
           </div>

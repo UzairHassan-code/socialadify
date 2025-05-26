@@ -12,7 +12,8 @@ from datetime import timedelta
 
 from app.schemas.user import (
     UserCreate, UserPublic, Token, UserInDB, UserUpdate,
-    RequestPasswordResetPayload, ResetPasswordPayload, ChangePasswordPayload # Added ChangePasswordPayload
+    RequestPasswordResetPayload, ResetPasswordPayload, ChangePasswordPayload,
+    DeleteAccountPayload # New import
 )
 from app.crud import user as user_service 
 from app.core.security import (
@@ -171,33 +172,62 @@ async def reset_password_endpoint(payload: ResetPasswordPayload, db: DbDependenc
     logger.info(f"Password successfully reset for user: {user.email}")
     return {"message": "Password has been reset successfully. You can now log in with your new password."}
 
-# --- NEW ENDPOINT FOR CHANGING PASSWORD BY AUTHENTICATED USER ---
 @router.post("/users/me/change-password")
 async def change_current_user_password(
-    payload: ChangePasswordPayload,
-    current_user: CurrentUserDependency,
-    db: DbDependency
+    payload: ChangePasswordPayload, current_user: CurrentUserDependency, db: DbDependency
 ):
+    # ... (existing code from previous step)
     logger.info(f"User {current_user.email} attempting to change password.")
-
-    # The payload.new_password is already validated by Pydantic for complexity
-    
     password_changed_successfully = await user_service.change_password(
-        db=db,
-        user=current_user, # Pass the full UserInDB object
-        current_password=payload.current_password,
-        new_password=payload.new_password
+        db=db, user=current_user, current_password=payload.current_password, new_password=payload.new_password
     )
-
     if not password_changed_successfully:
         logger.warning(f"Failed to change password for user {current_user.email}. Current password might be incorrect or DB update failed.")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Could not change password. Please verify your current password or try again later.")
+    logger.info(f"Password changed successfully for user {current_user.email}.")
+    return {"message": "Password changed successfully. It's recommended to log out and log back in."}
+
+# --- NEW ENDPOINT FOR DELETING USER ACCOUNT ---
+@router.post("/users/me/delete-account", status_code=status.HTTP_200_OK) # Using POST for body, but could be DELETE
+async def delete_current_user_account(
+    payload: DeleteAccountPayload, # Requires current password
+    current_user: CurrentUserDependency,
+    db: DbDependency,
+    background_tasks: BackgroundTasks # To delete profile pic in background
+):
+    logger.info(f"User {current_user.email} attempting to delete their account.")
+
+    user_deleted = await user_service.delete_user(
+        db=db,
+        user=current_user,
+        current_password_to_verify=payload.password
+    )
+
+    if not user_deleted:
+        logger.warning(f"Failed to delete account for user {current_user.email}. Password verification likely failed.")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Could not change password. Please verify your current password or try again later."
+            detail="Could not delete account. Please verify your password."
         )
     
-    logger.info(f"Password changed successfully for user {current_user.email}.")
-    # Consider logging the user out or invalidating existing tokens for added security,
-    # but for now, just a success message. User should ideally re-login.
-    return {"message": "Password changed successfully. It's recommended to log out and log back in."}
+    # If user had a profile picture, schedule its deletion from static files
+    if current_user.profile_picture_url and current_user.profile_picture_url.startswith("/static/profile_pics/"):
+        filename = current_user.profile_picture_url.split("/")[-1]
+        file_to_delete_path = PROFILE_PICS_DIR / filename
+        
+        def delete_profile_pic_file(path_to_delete: Path):
+            if path_to_delete.exists():
+                try:
+                    os.remove(path_to_delete)
+                    logger.info(f"Profile picture file deleted: {path_to_delete}")
+                except Exception as e_del:
+                    logger.error(f"Error deleting profile picture file {path_to_delete}: {e_del}")
+            else:
+                logger.warning(f"Profile picture file not found for deletion: {path_to_delete}")
+
+        background_tasks.add_task(delete_profile_pic_file, file_to_delete_path)
+
+    logger.info(f"Account for user {current_user.email} (ID: {current_user.id}) has been successfully deleted.")
+    # The frontend will handle logging the user out.
+    return {"message": "Your account has been successfully deleted."}
 

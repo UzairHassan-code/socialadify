@@ -5,7 +5,8 @@ import { useAuth } from '@/context/AuthContext';
 import Link from 'next/link';
 import React, { useState, useEffect } from 'react';
 import EditProfileModal from '@/components/EditProfileModal';
-import ChangePasswordModal from '@/components/ChangePasswordModal'; // New Import
+import ChangePasswordModal from '@/components/ChangePasswordModal';
+import DeleteAccountModal from '@/components/DeleteAccountModal'; // New Import
 import Image from 'next/image';
 
 // Simple SVG Icons
@@ -18,6 +19,12 @@ const HistoryIcon = ({ className = "w-6 h-6" }: { className?: string }) => (
         <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
     </svg>
 );
+const AlertTriangleIcon = ({ className = "w-5 h-5 text-red-300" }: { className?: string }) => (
+    <svg className={className} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" >
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+    </svg>
+);
+
 
 const API_BASE_URL_STATIC = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
 
@@ -25,12 +32,12 @@ const API_BASE_URL_STATIC = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://loca
 export default function AccountPage() {
   const { user, logout, isAuthenticated, isAuthReady } = useAuth(); 
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [isChangePasswordModalOpen, setIsChangePasswordModalOpen] = useState(false); // New state
+  const [isChangePasswordModalOpen, setIsChangePasswordModalOpen] = useState(false);
+  const [isDeleteAccountModalOpen, setIsDeleteAccountModalOpen] = useState(false); // New state
 
   useEffect(() => {
     if (user) {
       console.log("AccountPage - User data from context:", JSON.stringify(user, null, 2));
-      console.log("AccountPage - Raw profile_picture_url from context:", user.profile_picture_url);
     } else {
       console.log("AccountPage - User data from context is null.");
     }
@@ -52,14 +59,6 @@ export default function AccountPage() {
           : `${API_BASE_URL_STATIC}${user.profile_picture_url}`)
       : null;
 
-  if (isAuthReady && isAuthenticated) {
-    console.log("AccountPage - API_BASE_URL_STATIC:", API_BASE_URL_STATIC);
-    console.log("AccountPage - Constructed profilePicUrl for Image component:", profilePicUrl);
-    if (user && user.profile_picture_url && user.profile_picture_url.trim() === '') {
-        console.warn("AccountPage - profile_picture_url from user context is an EMPTY STRING.");
-    }
-  }
-
   return (
     <>
       <div className="py-12 sm:py-16 px-4 sm:px-6 lg:px-8">
@@ -74,7 +73,9 @@ export default function AccountPage() {
             </p>
           </div>
 
+          {/* Profile Info Card */}
           <div className="bg-slate-800/70 backdrop-blur-md shadow-2xl rounded-2xl p-6 sm:p-8 mb-8 border border-slate-700">
+            {/* ... (profile info content remains the same) ... */}
             <div className="flex flex-col sm:flex-row items-center">
               <div className="flex-shrink-0 mb-6 sm:mb-0 sm:mr-8 relative">
                 <div className="w-24 h-24 sm:w-32 sm:h-32 bg-indigo-500/30 rounded-full flex items-center justify-center overflow-hidden ring-2 ring-indigo-400/50">
@@ -113,7 +114,9 @@ export default function AccountPage() {
             </div>
           </div>
 
+          {/* Action Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            {/* ... (Home Hub, Caption History links remain the same) ... */}
             <Link href="/home" className="group block p-6 bg-slate-800/60 backdrop-blur-md shadow-xl rounded-2xl hover:bg-slate-700/80 hover:border-indigo-500/70 border border-slate-700 transition-all duration-300 ease-in-out transform hover:-translate-y-1">
               <div className="flex items-center mb-2">
                 <HomeIcon className="w-6 h-6 text-indigo-400 mr-3 group-hover:text-indigo-300 transition-colors" />
@@ -140,12 +143,13 @@ export default function AccountPage() {
             </button>
           </div>
 
+          {/* Settings Sections */}
           <div className="space-y-6">
             <div className="bg-slate-800/60 backdrop-blur-md shadow-xl rounded-2xl p-6 sm:p-8 border border-slate-700">
               <h3 className="text-lg font-semibold text-slate-100 mb-1">Security Settings</h3>
               <p className="text-sm text-slate-400 mb-4">Manage your password and account security.</p>
               <button 
-                onClick={() => setIsChangePasswordModalOpen(true)} // Open the new modal
+                onClick={() => setIsChangePasswordModalOpen(true)}
                 className="px-4 py-2 text-xs font-medium text-indigo-200 bg-indigo-600/70 hover:bg-indigo-600/90 rounded-md transition-colors"
               >
                 Change Password
@@ -156,6 +160,23 @@ export default function AccountPage() {
               <p className="text-sm text-slate-400">Customize how you receive notifications.</p>
               <p className="mt-4 text-xs text-slate-500 italic">Settings coming soon.</p>
             </div>
+
+            {/* Delete Account Section - New */}
+            <div className="bg-red-900/30 backdrop-blur-md shadow-xl rounded-2xl p-6 sm:p-8 border border-red-700/50">
+              <div className="flex items-center gap-3 mb-2">
+                <AlertTriangleIcon className="w-6 h-6 text-red-400 flex-shrink-0"/>
+                <h3 className="text-lg font-semibold text-red-200">Delete Account</h3>
+              </div>
+              <p className="text-sm text-red-300 mb-4">
+                Permanently delete your account and all associated data. This action cannot be undone.
+              </p>
+              <button 
+                onClick={() => setIsDeleteAccountModalOpen(true)}
+                className="px-4 py-2 text-xs font-medium text-white bg-red-600 hover:bg-red-700 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:ring-offset-red-900/30"
+              >
+                Delete My Account
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -165,9 +186,13 @@ export default function AccountPage() {
         onClose={() => setIsEditModalOpen(false)}
         currentUser={user}
       />
-      <ChangePasswordModal // Add the new modal instance
+      <ChangePasswordModal
         isOpen={isChangePasswordModalOpen}
         onClose={() => setIsChangePasswordModalOpen(false)}
+      />
+      <DeleteAccountModal // Add the new modal instance
+        isOpen={isDeleteAccountModalOpen}
+        onClose={() => setIsDeleteAccountModalOpen(false)}
       />
     </>
   );

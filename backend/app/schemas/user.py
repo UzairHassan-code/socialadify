@@ -34,12 +34,9 @@ def validate_password_complexity(password: str) -> str:
 
 
 def validate_object_id(v: Any) -> ObjectId:
-    if isinstance(v, ObjectId):
-        return v
-    if ObjectId.is_valid(v): 
-        return ObjectId(v)
-    if isinstance(v, bytes) and len(v) == 12: 
-        return ObjectId(v)
+    if isinstance(v, ObjectId): return v
+    if ObjectId.is_valid(v): return ObjectId(v)
+    if isinstance(v, bytes) and len(v) == 12: return ObjectId(v)
     raise ValueError(f"Invalid ObjectId: {v}")
 
 PyObjectId = Annotated[ObjectId, BeforeValidator(validate_object_id)]
@@ -54,57 +51,37 @@ class UserCreate(UserBase):
     password: str = Field(..., min_length=8) 
     firstname: str = Field(..., min_length=1) 
     lastname: str = Field(..., min_length=1)
-
     @field_validator('email')
     @classmethod
-    def check_email_domain_on_create(cls, value: EmailStr) -> EmailStr:
-        return validate_email_domain(value)
-
+    def check_email_domain_on_create(cls, value: EmailStr) -> EmailStr: return validate_email_domain(value)
     @field_validator('password')
     @classmethod
-    def check_password_complexity(cls, value: str) -> str:
-        return validate_password_complexity(value)
-
+    def check_password_complexity(cls, value: str) -> str: return validate_password_complexity(value)
 
 class UserUpdate(BaseModel): 
     firstname: Optional[str] = Field(None, min_length=1)
     lastname: Optional[str] = Field(None, min_length=1)
     new_email: Optional[EmailStr] = Field(None, description="New email address for the user")
-
     @field_validator('new_email')
     @classmethod
     def check_new_email_domain_on_update(cls, value: Optional[EmailStr]) -> Optional[EmailStr]:
-        if value is None: 
-            return value
+        if value is None: return value
         return validate_email_domain(value)
-
 
 class UserInDBBase(UserBase): 
     id: PyObjectId = Field(alias="_id")
     password_reset_token: Optional[str] = None
     password_reset_token_expires_at: Optional[datetime] = None
-    
-    model_config = ConfigDict(
-        populate_by_name=True,
-        arbitrary_types_allowed=True, 
-        json_encoders={ObjectId: str, datetime: lambda dt: dt.isoformat()} 
-    )
+    model_config = ConfigDict(populate_by_name=True, arbitrary_types_allowed=True, json_encoders={ObjectId: str, datetime: lambda dt: dt.isoformat()})
 
 class UserInDB(UserInDBBase): 
     hashed_password: str
 
 class UserPublic(UserBase): 
     id: str 
-
     @classmethod
     def from_user_in_db(cls, user_in_db: UserInDB) -> "UserPublic":
-        return cls(
-            id=str(user_in_db.id),
-            email=user_in_db.email,
-            firstname=user_in_db.firstname,
-            lastname=user_in_db.lastname,
-            profile_picture_url=user_in_db.profile_picture_url 
-        )
+        return cls(id=str(user_in_db.id), email=user_in_db.email, firstname=user_in_db.firstname, lastname=user_in_db.lastname, profile_picture_url=user_in_db.profile_picture_url)
 
 class Token(BaseModel):
     access_token: str
@@ -119,20 +96,17 @@ class RequestPasswordResetPayload(BaseModel):
 class ResetPasswordPayload(BaseModel):
     token: str
     new_password: str = Field(..., min_length=8)
-
     @field_validator('new_password')
     @classmethod
-    def check_new_password_complexity(cls, value: str) -> str:
-        return validate_password_complexity(value)
+    def check_new_password_complexity(cls, value: str) -> str: return validate_password_complexity(value)
 
-# --- New Schema for Change Password ---
 class ChangePasswordPayload(BaseModel):
     current_password: str
     new_password: str = Field(..., min_length=8)
-
     @field_validator('new_password')
     @classmethod
-    def check_new_password_complexity_on_change(cls, value: str) -> str:
-        # Re-using the existing complexity validator
-        return validate_password_complexity(value)
+    def check_new_password_complexity_on_change(cls, value: str) -> str: return validate_password_complexity(value)
 
+# --- New Schema for Delete Account Confirmation ---
+class DeleteAccountPayload(BaseModel):
+    password: str # User must provide their current password to confirm deletion

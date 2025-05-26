@@ -42,10 +42,14 @@ export interface ResetPasswordPayloadFE {
     new_password: string;
 }
 
-// --- New Interface for Change Password ---
 export interface ChangePasswordData {
     current_password: string;
     new_password: string;
+}
+
+// --- New Interface for Delete Account ---
+export interface DeleteAccountData {
+    password: string; // Current password to confirm deletion
 }
 // --- End New Interface ---
 
@@ -200,7 +204,6 @@ export async function resetPassword(payload: ResetPasswordPayloadFE): Promise<{ 
     return response.json(); 
 }
 
-// --- NEW FUNCTION FOR CHANGING PASSWORD ---
 export async function apiChangePassword(token: string, payload: ChangePasswordData): Promise<{ message: string }> {
     console.log("authService: Attempting to change password.");
     const response = await fetch(`${API_BASE_URL}/auth/users/me/change-password`, {
@@ -212,11 +215,31 @@ export async function apiChangePassword(token: string, payload: ChangePasswordDa
         body: JSON.stringify(payload),
     });
     if (!response.ok) {
-        // Handle specific 401 for session expiry, or general errors
         if (response.status === 401) {
             throw new Error("Unauthorized: Your session may have expired. Please log in again.");
         }
         return handleApiError(response, 'Failed to change password. Please check your current password.');
+    }
+    return response.json(); 
+}
+
+// --- NEW FUNCTION FOR DELETING ACCOUNT ---
+export async function apiDeleteAccount(token: string, payload: DeleteAccountData): Promise<{ message: string }> {
+    console.log("authService: Attempting to delete account.");
+    const response = await fetch(`${API_BASE_URL}/auth/users/me/delete-account`, {
+        method: 'POST', // Changed to POST to send a body, backend uses POST for this too
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+        if (response.status === 401) {
+            throw new Error("Unauthorized: Your session may have expired. Please log in again.");
+        }
+        return handleApiError(response, 'Failed to delete account. Please check your password.');
     }
     return response.json(); // Expects { "message": "..." }
 }
