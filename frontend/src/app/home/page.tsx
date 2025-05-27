@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import React from 'react';
 
-// --- Icon Components - Adjusted for new theme ---
+// --- Icon Components ---
 const IconWrapper: React.FC<{children: React.ReactNode, colorClass: string, iconColorClass: string}> = ({ children, colorClass, iconColorClass }) => (
   <div className={`p-3.5 rounded-xl shadow-lg backdrop-blur-md transition-all duration-300 ease-out group-hover:scale-105 group-hover:shadow-xl ${colorClass}`}>
     {React.cloneElement(children as React.ReactElement, { className: `w-10 h-10 ${iconColorClass} group-hover:opacity-80 transition-opacity duration-300`})}
@@ -27,15 +27,15 @@ const CaptionGenerationIcon = () => (
     </svg>
   </IconWrapper>
 );
-const PostSchedulingIcon = () => (
-  <IconWrapper colorClass="bg-purple-500/20 group-hover:bg-purple-500/30" iconColorClass="text-purple-300 group-hover:text-purple-200">
+const PostSchedulingIcon = () => ( // Icon for Post Scheduling
+  <IconWrapper colorClass="bg-orange-500/20 group-hover:bg-orange-500/30" iconColorClass="text-orange-300 group-hover:text-orange-200">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
         <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
         <line x1="16" y1="2" x2="16" y2="6"></line>
         <line x1="8" y1="2" x2="8" y2="6"></line>
         <line x1="3" y1="10" x2="21" y2="10"></line>
-        <path d="M12 14l2 2"></path>
-        <path d="M12 18l2-2"></path>
+        <path d="M12 14l2 2"></path> {/* Simple clock/check mark indication */}
+        <path d="M12 18l-2-2"></path>
     </svg>
   </IconWrapper>
 );
@@ -67,7 +67,7 @@ const ModuleCard: React.FC<ModuleCardProps> = ({
   `;
   const cardHoverClasses = comingSoon 
     ? 'opacity-60 cursor-not-allowed' 
-    : 'hover:scale-[1.03] hover:-translate-y-1.5 hover:shadow-blue-500/40 hover:border-blue-500/70'; // Adjusted hover border color
+    : 'hover:scale-[1.03] hover:-translate-y-1.5 hover:shadow-blue-500/40 hover:border-blue-500/70';
 
   const cardContent = (
     <>
@@ -126,24 +126,24 @@ export default function HomePage() {
         <ModuleCard
           title="Ad Insight & AI Optimizer"
           description="Analyze performance, view trends, and get AI-powered suggestions to boost your campaigns."
-          link="/dashboard" // This one is already active
+          link="/dashboard" 
           icon={<InsightIcon />}
           actionText="View Dashboard"
         />
         <ModuleCard
-          title="Caption Generation"
-          description="Generate engaging and effective ad captions with the power of AI. Save time and boost clicks."
-          link="/caption-generator" // UPDATED: Link to the new page
+          title="AI Caption Generator"
+          description="Generate engaging ad captions with AI. Save time, view history, and boost clicks."
+          link="/caption-generator" 
           icon={<CaptionGenerationIcon />}
-          comingSoon={false} // UPDATED: Module is now active
-          actionText="Generate Captions" // UPDATED: Action text
+          actionText="Generate Captions"
         />
         <ModuleCard
           title="Post Scheduling"
           description="Plan and automate your social media posts across multiple platforms with an intuitive calendar."
-          link="#" 
+          link="/scheduler"  // UPDATED LINK
           icon={<PostSchedulingIcon />}
-          comingSoon={true} // This one remains coming soon
+          comingSoon={false} // UPDATED: Module is now active
+          actionText="Open Scheduler" // UPDATED: Action text
         />
       </div>
     </div>
