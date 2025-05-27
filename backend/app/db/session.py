@@ -3,42 +3,42 @@
 import os
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 from dotenv import load_dotenv
-import certifi # <--- ENSURE THIS IMPORT IS PRESENT
-from pathlib import Path # For robust .env path finding
+import certifi
+from pathlib import Path
+import logging # Import logging module for better messages
+
+logger = logging.getLogger(__name__) # Get logger instance
 
 # Construct path to .env in the backend root directory
-backend_root = Path(__file__).resolve().parent.parent.parent 
+backend_root = Path(__file__).resolve().parent.parent.parent
 dotenv_path = backend_root / ".env"
 
 if dotenv_path.exists():
     load_dotenv(dotenv_path=dotenv_path)
-    # print(f"DEBUG: session.py loaded .env from: {dotenv_path}") # Optional debug
+    logger.info(f"Loaded .env file from: {dotenv_path}") # Use logger instead of print
 else:
-    print(f"WARNING: .env file not found at {dotenv_path} by session.py. Relying on system environment variables or .env loaded elsewhere.")
+    logger.warning(f"WARNING: .env file not found at {dotenv_path} by session.py. Relying on system environment variables or .env loaded elsewhere.")
 
 # --- Database Configuration ---
-DATABASE_URL = os.getenv("DATABASE_URL") 
+DATABASE_URL = os.getenv("DATABASE_URL")
 
 # Try to parse DB_NAME from DATABASE_URL, otherwise use a default
-# This logic is important for making sure the correct database is targeted.
 if DATABASE_URL:
     try:
         path_part = DATABASE_URL.split("/")[-1]
         db_name_from_url = path_part.split("?")[0]
-        
+
         if db_name_from_url and db_name_from_url != DATABASE_URL and not db_name_from_url.startswith("mongodb+srv:"):
             DB_NAME = db_name_from_url
         else:
-            # If parsing didn't yield a clear DB name (e.g. URL is just server part or parsing failed)
-            # Fallback to an environment variable or a hardcoded default.
-            DB_NAME = os.getenv("MONGODB_DB_NAME", "socialadify_db") 
-            # print(f"DEBUG: DB_NAME from URL was inconclusive, using MONGODB_DB_NAME env or default: {DB_NAME}")
+            DB_NAME = os.getenv("MONGODB_DB_NAME", "db_socialadify") # Ensure this default is correct
+            logger.info(f"DB_NAME from URL was inconclusive, using MONGODB_DB_NAME env or default: {DB_NAME}")
     except Exception as e:
-        DB_NAME = os.getenv("MONGODB_DB_NAME", "socialadify_db")
-        # print(f"DEBUG: Error parsing DB_NAME from URL ({e}), using MONGODB_DB_NAME env or default: {DB_NAME}")
+        DB_NAME = os.getenv("MONGODB_DB_NAME", "db_socialadify")
+        logger.error(f"Error parsing DB_NAME from URL ({e}), using MONGODB_DB_NAME env or default: {DB_NAME}", exc_info=True) # Log full exception
 else:
-    DB_NAME = os.getenv("MONGODB_DB_NAME", "socialadify_db") 
-    print("WARNING: DATABASE_URL not set in environment. Using default DB_NAME in session.py and connection will likely fail.")
+    DB_NAME = os.getenv("MONGODB_DB_NAME", "db_socialadify")
+    logger.critical("CRITICAL ERROR: DATABASE_URL not set in environment. Using default DB_NAME in session.py and connection will likely fail.")
 
 
 # --- Global Database Client and Database Instance ---
@@ -53,27 +53,29 @@ async def connect_to_mongo():
     """
     global client, db
     if not DATABASE_URL:
-        print("CRITICAL ERROR: DATABASE_URL is not set. Cannot connect to MongoDB.")
+        logger.critical("CRITICAL ERROR: DATABASE_URL is not set. Cannot connect to MongoDB.")
         return
 
-    print(f"Attempting to connect to MongoDB (using DB: '{DB_NAME}')")
+    logger.info(f"Attempting to connect to MongoDB (parsed DB: '{DB_NAME}')") # Changed print to logger.info
+    
     try:
-        # --- Use certifi's CA bundle for TLS/SSL ---
-        ca = certifi.where() # Get path to certifi's CA bundle
-        print(f"DEBUG: Using certifi CA bundle at: {ca}") # Debug print
+        ca = certifi.where()
+        logger.debug(f"Using certifi CA bundle at: {ca}") # Changed to debug level
 
         client = AsyncIOMotorClient(
             DATABASE_URL,
-            tlsCAFile=ca  # <--- THIS IS THE CRITICAL LINE FOR CERTIFI
+            tlsCAFile=ca
         )
+
+        await client.admin.command('ping')
         
-        await client.admin.command('ping') 
-        db = client[DB_NAME] 
-        print(f"Successfully connected to MongoDB. Using database: '{DB_NAME}'")
+        # NEW DEBUG PRINT: Verify the database name the client is using
+        logger.info(f"Successfully connected to MongoDB. Client attempting to access database: '{DB_NAME}'")
+        db = client[DB_NAME]
+        logger.info(f"Successfully obtained database instance for: '{DB_NAME}'")
+        
     except Exception as e:
-        print(f"Error connecting to MongoDB: {e}")
-        import traceback # For more detailed error in development
-        print(traceback.format_exc()) # Print full traceback
+        logger.critical(f"Error connecting to MongoDB: {e}", exc_info=True) # Changed to critical and added exc_info
         client = None
         db = None
 
@@ -84,9 +86,9 @@ async def close_mongo_connection():
     """
     global client
     if client:
-        print("Closing MongoDB connection...")
+        logger.info("Closing MongoDB connection...")
         client.close()
-        print("MongoDB connection closed.")
+        logger.info("MongoDB connection closed.")
 
 async def get_database() -> AsyncIOMotorDatabase:
     """
@@ -94,8 +96,6 @@ async def get_database() -> AsyncIOMotorDatabase:
     Ensures that 'db' is initialized.
     """
     if db is None:
-        print("WARNING: get_database() called but 'db' instance is None. This might indicate a connection issue at startup or DATABASE_URL not set.")
-        if db is None: 
-             raise Exception("Database not initialized. Ensure connect_to_mongo() is successfully called at application startup via lifespan manager and DATABASE_URL is correctly set.")
+        logger.error("get_database() called but 'db' instance is None. This might indicate a connection issue at startup or DATABASE_URL not set.")
+        raise Exception("Database not initialized. Ensure connect_to_mongo() is successfully called at application startup via lifespan manager and DATABASE_URL is correctly set.")
     return db
-

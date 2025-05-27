@@ -1,8 +1,8 @@
 // D:\socialadify\frontend\src\app\services\page.tsx
-'use client';
+'use client'; // Make sure this is the very first line
 
 import React from 'react';
-import Link from 'next/link'; // Added missing import
+import Link from 'next/link'; // Added missing import if it was not there before
 
 // Placeholder icons (replace with actual icons if desired)
 const AdManagementIcon = ({ className = "w-12 h-12 text-sky-400" }: { className?: string }) => (
@@ -33,47 +33,47 @@ const ServiceCard: React.FC<{ title: string; description: string; icon: React.Re
 );
 
 export default function ServicesPage() {
-  return (
-    <div className="space-y-12">
-      <header className="text-center">
-        <h1 className="text-4xl sm:text-5xl font-extrabold text-slate-50 tracking-tight bg-gradient-to-r from-green-400 via-blue-400 to-sky-400 bg-clip-text text-transparent pb-2">
-          Our Services
-        </h1>
-        <p className="mt-4 text-lg text-slate-300 max-w-2xl mx-auto">
-          SocialAdify offers a suite of AI-powered tools designed to elevate your social media advertising and content strategy.
-        </p>
-      </header>
+    return (
+        <div className="space-y-12">
+            <header className="text-center">
+                <h1 className="text-4xl sm:text-5xl font-extrabold text-slate-50 tracking-tight bg-gradient-to-r from-green-400 via-blue-400 to-sky-400 bg-clip-text text-transparent pb-2">
+                    Our Services
+                </h1>
+                <p className="mt-4 text-lg text-slate-300 max-w-2xl mx-auto">
+                    SocialAdify offers a suite of AI-powered tools designed to elevate your social media advertising and content strategy.
+                </p>
+            </header>
 
-      <section>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          <ServiceCard 
-            title="AI Ad Insights & Optimization"
-            description="Unlock deep insights into your ad performance. Get data-driven recommendations from our AI to maximize ROI and campaign effectiveness across platforms."
-            icon={<AnalyticsIcon />}
-          />
-          <ServiceCard 
-            title="Intelligent Caption Generation"
-            description="Never stare at a blank text box again. Our AI crafts compelling, engaging captions tailored to your audience, tone, and campaign goals in seconds."
-            icon={<AICaptionIcon />}
-          />
-          <ServiceCard 
-            title="Comprehensive Ad Management"
-            description="Streamline your entire ad workflow. From creation and organization to (soon) scheduling, manage all your social media ads from one intuitive dashboard."
-            icon={<AdManagementIcon />}
-          />
-          {/* Add more service cards as features grow */}
+            <section>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    <ServiceCard
+                        title="AI Ad Insights & Optimization"
+                        description="Unlock deep insights into your ad performance. Get data-driven recommendations from our AI to maximize ROI and campaign effectiveness across platforms."
+                        icon={<AnalyticsIcon />}
+                    />
+                    <ServiceCard
+                        title="Intelligent Caption Generation"
+                        description="Never stare at a blank text box again. Our AI crafts compelling, engaging captions tailored to your audience, tone, and campaign goals in seconds."
+                        icon={<AICaptionIcon />}
+                    />
+                    <ServiceCard
+                        title="Comprehensive Ad Management"
+                        description="Streamline your entire ad workflow. From creation and organization to (soon) scheduling, manage all your social media ads from one intuitive dashboard."
+                        icon={<AdManagementIcon />}
+                    />
+                    {/* Add more service cards as features grow */}
+                </div>
+            </section>
+
+            <section className="text-center py-8">
+                <h2 className="text-2xl font-semibold text-slate-200 mb-4">Ready to Transform Your Ad Strategy?</h2>
+                <p className="text-slate-400 mb-6 max-w-xl mx-auto">
+                    Join SocialAdify today and experience the future of social media advertising.
+                </p>
+                <Link href="/signup" className="inline-block px-8 py-3 text-base font-medium text-white bg-gradient-to-r from-blue-600 to-sky-500 hover:from-blue-500 hover:to-sky-400 rounded-lg shadow-lg transition-transform transform hover:scale-105">
+                    Get Started for Free
+                </Link>
+            </section>
         </div>
-      </section>
-
-      <section className="text-center py-8">
-        <h2 className="text-2xl font-semibold text-slate-200 mb-4">Ready to Transform Your Ad Strategy?</h2>
-        <p className="text-slate-400 mb-6 max-w-xl mx-auto">
-          Join SocialAdify today and experience the future of social media advertising.
-        </p>
-        <Link href="/signup" className="inline-block px-8 py-3 text-base font-medium text-white bg-gradient-to-r from-blue-600 to-sky-500 hover:from-blue-500 hover:to-sky-400 rounded-lg shadow-lg transition-transform transform hover:scale-105">
-            Get Started for Free
-        </Link>
-      </section>
-    </div>
-  );
+    );
 }
