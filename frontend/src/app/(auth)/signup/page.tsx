@@ -13,8 +13,39 @@ const AppLogo = ({ className = "w-10 h-10 text-white" }: { className?: string })
     </svg>
 );
 const GoogleIcon = () => <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M21.805 10.034C21.805 9.389 21.744 8.763 21.624 8.16H12.155V11.69H17.57C17.343 12.915 16.605 13.965 15.511 14.713V17.11H18.954C20.798 15.461 21.805 12.989 21.805 10.034Z" fill="#4285F4"/><path d="M12.155 22.0001C15.011 22.0001 17.383 21.0531 18.954 19.5181L15.511 17.1101C14.605 17.7101 13.482 18.0701 12.155 18.0701C9.49801 18.0701 7.24201 16.3101 6.43101 13.8961L2.86801 13.8961V16.3771C4.44001 19.6571 7.99101 22.0001 12.155 22.0001Z" fill="#34A853"/><path d="M6.43101 13.8967C6.20401 13.2517 6.07601 12.5607 6.07601 11.8337C6.07601 11.1067 6.20401 10.4157 6.43101 9.77075V7.28875L2.86801 7.28875C2.13701 8.71675 1.73201 10.2217 1.73201 11.8337C1.73201 13.4457 2.13701 14.9507 2.86801 16.3787L6.43101 13.8967Z" fill="#FBBC05"/><path d="M12.155 6.5999C13.596 6.5999 14.702 7.0869 15.581 7.9239L19.029 4.6999C17.378 3.1679 15.006 2.2669 12.155 2.2669C7.99101 2.2669 4.44001 4.6109 2.86801 7.2889L6.43101 9.7709C7.24201 7.3569 9.49801 6.5999 12.155 6.5999Z" fill="#EA4335"/></svg>;
-const CheckIcon = ({className="w-4 h-4 text-green-500"}: {className?: string}) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={className}><path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" /></svg>;
-const CrossIcon = ({className="w-4 h-4 text-red-500"}: {className?: string}) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={className}><path fillRule="evenodd" d="M4.28 3.22a.75.75 0 00-1.06 1.06L8.94 10l-5.72 5.72a.75.75 0 101.06 1.06L10 11.06l5.72 5.72a.75.75 0 101.06-1.06L11.06 10l5.72-5.72a.75.75 0 00-1.06-1.06L10 8.94 4.28 3.22z" clipRule="evenodd" /></svg>;
+
+// Password Hint and Validation Display Component
+const PasswordHintAndValidationDisplay = ({ password, showDetails }: { password?: string; showDetails?: boolean }) => {
+    const criteria = [
+        { label: "At least 8 characters", met: (password?.length || 0) >= 8 },
+        { label: "One uppercase letter (A-Z)", met: /[A-Z]/.test(password || '') },
+        { label: "One lowercase letter (a-z)", met: /[a-z]/.test(password || '') },
+        { label: "One digit (0-9)", met: /[0-9]/.test(password || '') },
+        { label: "One special character (e.g. !@#$)", met: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/.test(password || '') }
+    ];
+
+    // Define icons with fixed small size and color, allowing additional classes to be passed for margin etc.
+    const CheckIcon = ({ additionalClassName="" }: {additionalClassName?: string}) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className={`w-3.5 h-3.5 text-green-600 ${additionalClassName}`}><path fillRule="evenodd" d="M12.416 3.376a.75.75 0 0 1 .208 1.04l-5 7.5a.75.75 0 0 1-1.154.114l-3-3a.75.75 0 0 1 1.06-1.06l2.353 2.353 4.493-6.74a.75.75 0 0 1 1.04-.207Z" clipRule="evenodd" /></svg>;
+    const CrossIcon = ({additionalClassName=""}: {additionalClassName?: string}) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className={`w-3.5 h-3.5 text-slate-400 ${additionalClassName}`}><path d="M5.28 4.22a.75.75 0 0 0-1.06 1.06L6.94 8l-2.72 2.72a.75.75 0 1 0 1.06 1.06L8 9.06l2.72 2.72a.75.75 0 1 0 1.06-1.06L9.06 8l2.72-2.72a.75.75 0 0 0-1.06-1.06L8 6.94 5.28 4.22Z" /></svg>;
+
+    if (!showDetails && password && password.length > 0 && !criteria.every(c => c.met)) {
+        return <p className="mt-1.5 text-xs text-slate-500">Password must meet complexity requirements.</p>;
+    }
+    if (!showDetails && (!password || password.length === 0)) {
+         return <p className="mt-1.5 text-xs text-slate-500">Min. 8 chars, incl. uppercase, lowercase, digit, special char.</p>;
+    }
+
+    return (
+        <div className="mt-2 space-y-0.5 text-xs">
+            {criteria.map(criterion => (
+                <p key={criterion.label} className={`flex items-center ${criterion.met ? 'text-green-600' : 'text-slate-500'}`}>
+                    {criterion.met ? <CheckIcon additionalClassName="mr-1 flex-shrink-0"/> : <CrossIcon additionalClassName="mr-1 flex-shrink-0"/>}
+                    <span>{criterion.label}</span>
+                </p>
+            ))}
+        </div>
+    );
+};
 
 
 export default function SignupPage() {
@@ -29,14 +60,10 @@ export default function SignupPage() {
   const router = useRouter();
   const [formError, setFormError] = useState<string | null>(null);
 
-  // Password validation states for UI feedback
-  const [passwordValidations, setPasswordValidations] = useState({
-    length: false,
-    uppercase: false,
-    lowercase: false,
-    digit: false,
-    specialChar: false,
-  });
+  const [isPasswordValid, setIsPasswordValid] = useState(false);
+  const [isConfirmPasswordValid, setIsConfirmPasswordValid] = useState(false);
+  const [showPasswordHints, setShowPasswordHints] = useState(false);
+
 
   useEffect(() => {
     if (isAuthReady && isAuthenticated) { router.push('/home'); }
@@ -47,28 +74,32 @@ export default function SignupPage() {
     return () => { if(authError) clearError(); }
   }, [authError, clearError]);
 
-  // Validate password as user types
   useEffect(() => {
-    setPasswordValidations({
+    const validations = {
       length: password.length >= 8,
       uppercase: /[A-Z]/.test(password),
       lowercase: /[a-z]/.test(password),
       digit: /[0-9]/.test(password),
       specialChar: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/.test(password),
-    });
+    };
+    setIsPasswordValid(Object.values(validations).every(Boolean));
   }, [password]);
+
+  useEffect(() => {
+    setIsConfirmPasswordValid(password.length > 0 && password === confirmPassword && isPasswordValid);
+  }, [password, confirmPassword, isPasswordValid]);
+
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setFormError(null); clearError(); 
     if (!termsAgreed) { setFormError("You must agree to the Terms & Conditions."); return; }
-    if (password !== confirmPassword) { setFormError("Passwords do not match!"); return; }
+    if (password !== confirmPassword) { setFormError("Passwords do not match!"); setShowPasswordHints(true); return; }
     if (!firstname || !lastname || !email || !password) { setFormError("All fields are required."); return; }
     
-    // Check client-side password validation before submitting (optional, backend is primary)
-    const allClientValidationsMet = Object.values(passwordValidations).every(Boolean);
-    if (!allClientValidationsMet) {
+    if (!isPasswordValid) {
         setFormError("Password does not meet all requirements.");
+        setShowPasswordHints(true);
         return;
     }
 
@@ -77,10 +108,9 @@ export default function SignupPage() {
       router.push('/login?signupSuccess=true');
     } catch (err: unknown) {
       console.error("SignupPage: Error during signup:", err);
-      // AuthContext will set its own error, which we display via formError
-      // If it's a non-auth context error (e.g. network), display that.
       if (err instanceof Error && !authError) { setFormError(err.message); } 
       else if (!authError) { setFormError('An unexpected error occurred.'); }
+      setShowPasswordHints(true); 
     }
   };
   
@@ -91,16 +121,26 @@ export default function SignupPage() {
     return ( <div className="flex items-center justify-center min-h-screen bg-slate-900"><p className="text-slate-300 text-lg">Already logged in. Redirecting...</p></div> );
   }
 
-  const inputClasses = "w-full px-4 py-3 text-sm border border-slate-300 rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition text-slate-800 placeholder-slate-400 bg-slate-50";
+  const baseInputClasses = "w-full px-4 py-3 text-sm border rounded-lg shadow-sm outline-none transition text-slate-800 placeholder-slate-400 bg-slate-50";
+  const defaultBorderClasses = "border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500";
+  const validInputClasses = "border-green-500 focus:ring-2 focus:ring-green-500 focus:border-green-500";
+  const errorBorderClasses = "border-red-500 focus:ring-2 focus:ring-red-500 focus:border-red-500";
+
+  const passwordInputDynamicClasses = `${baseInputClasses} ${
+    password.length > 0 && !isPasswordValid && showPasswordHints ? errorBorderClasses : (isPasswordValid ? validInputClasses : defaultBorderClasses)
+  }`;
+  const confirmPasswordInputDynamicClasses = `${baseInputClasses} ${
+    confirmPassword.length > 0 && password !== confirmPassword && showPasswordHints ? errorBorderClasses : (isConfirmPasswordValid && confirmPassword.length > 0 ? validInputClasses : defaultBorderClasses)
+  }`;
+
+
   const labelClasses = "block text-xs font-semibold text-slate-600 mb-1.5 tracking-wide";
 
   return (
     <div className="min-h-screen flex flex-col lg:flex-row bg-slate-50 lg:overflow-hidden">
-      {/* Left Branding Panel */}
       <div className="w-full lg:w-1/2 bg-slate-900 text-white p-8 sm:p-12 md:p-20 flex flex-col justify-center items-center lg:items-start text-center lg:text-left order-last lg:order-first relative overflow-hidden">
         <div className="absolute top-0 left-0 w-72 h-72 bg-indigo-500 opacity-20 rounded-full -translate-x-1/2 -translate-y-1/2 filter blur-3xl"></div>
         <div className="absolute bottom-0 right-0 w-80 h-80 bg-purple-600 opacity-20 rounded-full translate-x-1/2 translate-y-1/2 filter blur-3xl"></div>
-        
         <div className="relative z-10 max-w-md xl:max-w-lg">
           <Link href="/" className="inline-flex items-center gap-3 mb-10 lg:mb-12">
             <AppLogo className="w-12 h-12 text-indigo-400"/>
@@ -120,7 +160,6 @@ export default function SignupPage() {
         </div>
       </div>
 
-      {/* Right Form Panel */}
       <div className="w-full lg:w-1/2 flex flex-col items-center justify-center p-6 py-10 sm:p-10 md:p-16 bg-white order-first lg:order-last">
         <div className="w-full max-w-sm space-y-6">
           <div className="text-left">
@@ -150,51 +189,42 @@ export default function SignupPage() {
                 <div className="flex-1 mb-4 sm:mb-0">
                     <label htmlFor="firstname" className={labelClasses}>First Name</label>
                     <input id="firstname" name="firstname" type="text" required
-                        className={inputClasses}
+                        className={`${baseInputClasses} ${defaultBorderClasses}`}
                         placeholder="E.g., Jane" value={firstname} onChange={(e) => setFirstname(e.target.value)} disabled={authIsLoading} />
                 </div>
                 <div className="flex-1">
                     <label htmlFor="lastname" className={labelClasses}>Last Name</label>
                     <input id="lastname" name="lastname" type="text" required
-                        className={inputClasses}
+                        className={`${baseInputClasses} ${defaultBorderClasses}`}
                         placeholder="E.g., Doe" value={lastname} onChange={(e) => setLastname(e.target.value)} disabled={authIsLoading} />
                 </div>
             </div>
             <div>
               <label htmlFor="email" className={labelClasses}>Email Address</label>
               <input id="email" name="email" type="email" autoComplete="email" required
-                className={inputClasses}
+                className={`${baseInputClasses} ${defaultBorderClasses}`}
                 placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} disabled={authIsLoading} />
             </div>
             <div>
               <label htmlFor="password" className={labelClasses}>Password</label>
               <input id="password" name="password" type="password" autoComplete="new-password" required
-                className={inputClasses}
-                placeholder="Enter your password" value={password} onChange={(e) => setPassword(e.target.value)} disabled={authIsLoading} />
-              {/* Password validation hints */}
-              <div className="mt-2 space-y-1 text-xs text-slate-500">
-                <p className={`flex items-center ${passwordValidations.length ? 'text-green-600' : 'text-slate-500'}`}>
-                  {passwordValidations.length ? <CheckIcon className="mr-1.5"/> : <CrossIcon className="mr-1.5"/>} At least 8 characters
-                </p>
-                <p className={`flex items-center ${passwordValidations.uppercase ? 'text-green-600' : 'text-slate-500'}`}>
-                  {passwordValidations.uppercase ? <CheckIcon className="mr-1.5"/> : <CrossIcon className="mr-1.5"/>} At least one uppercase letter
-                </p>
-                 <p className={`flex items-center ${passwordValidations.lowercase ? 'text-green-600' : 'text-slate-500'}`}>
-                  {passwordValidations.lowercase ? <CheckIcon className="mr-1.5"/> : <CrossIcon className="mr-1.5"/>} At least one lowercase letter
-                </p>
-                 <p className={`flex items-center ${passwordValidations.digit ? 'text-green-600' : 'text-slate-500'}`}>
-                  {passwordValidations.digit ? <CheckIcon className="mr-1.5"/> : <CrossIcon className="mr-1.5"/>} At least one digit
-                </p>
-                <p className={`flex items-center ${passwordValidations.specialChar ? 'text-green-600' : 'text-slate-500'}`}>
-                  {passwordValidations.specialChar ? <CheckIcon className="mr-1.5"/> : <CrossIcon className="mr-1.5"/>} At least one special character (e.g. !@#$)
-                </p>
-              </div>
+                className={passwordInputDynamicClasses}
+                placeholder="Enter your password" 
+                value={password} 
+                onChange={(e) => setPassword(e.target.value)} 
+                onFocus={() => setShowPasswordHints(true)}
+                disabled={authIsLoading} />
+              <PasswordHintAndValidationDisplay password={password} showDetails={showPasswordHints || (password.length > 0 && !isPasswordValid)} />
             </div>
               <div>
               <label htmlFor="confirmPassword" className={labelClasses}>Confirm Password</label>
               <input id="confirmPassword" name="confirmPassword" type="password" autoComplete="new-password" required
-                className={inputClasses}
-                placeholder="Re-enter password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} disabled={authIsLoading} />
+                className={confirmPasswordInputDynamicClasses}
+                placeholder="Re-enter password" 
+                value={confirmPassword} 
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                onFocus={() => setShowPasswordHints(true)} 
+                disabled={authIsLoading} />
             </div>
             <div className="flex items-center pt-1">
                 <input id="terms" name="terms" type="checkbox" required 
@@ -208,7 +238,7 @@ export default function SignupPage() {
 
             <button
               type="submit"
-              disabled={authIsLoading || !termsAgreed || !Object.values(passwordValidations).every(Boolean)}
+              disabled={authIsLoading || !termsAgreed || !isPasswordValid || password !== confirmPassword}
               className="w-full py-3 mt-2 px-4 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition duration-150 ease-in-out disabled:opacity-70 disabled:cursor-not-allowed text-base"
             >
               {authIsLoading ? "Creating Account..." : "Create Free Account"}

@@ -1,22 +1,27 @@
-// D:\socialadify\frontend\next.config.ts
-import type { NextConfig } from "next";
+// D:\socialadify\frontend\next.config.mjs
 
-const nextConfig: NextConfig = {
-  /* Your existing config options here */
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  reactStrictMode: true, // Or your existing reactStrictMode setting
   images: {
     remotePatterns: [
       {
-        protocol: 'http', // Or 'https' if your backend serves images over https in production
+        protocol: 'http',
         hostname: 'localhost',
-        port: '8000', // Specify the port your backend is running on
-        pathname: '/static/profile_pics/**', // Be as specific as possible with the path
+        port: '8000', // Important: specify the port your backend is running on
+        pathname: '/static/**', // Allows any path under /static/, good for profile_pics and scheduled_post_images
       },
-      // You can add other patterns here if needed for other external image sources
+      {
+        // This pattern is for the placeholder images we've used
+        protocol: 'https',
+        hostname: 'placehold.co',
+        port: '', // Default port for https (443)
+        pathname: '/**', // Allow any path on placehold.co
+      },
+      // You can add more patterns here if you use images from other external domains
     ],
-    // If you were on an older Next.js version, you might use domains:
-    // domains: ['localhost'], 
-    // But remotePatterns is more secure and flexible.
   },
+  // Any other Next.js configurations you might have...
 };
 
 export default nextConfig;

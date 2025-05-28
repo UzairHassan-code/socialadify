@@ -30,8 +30,29 @@ export interface UserPublic {
 export interface UserProfileUpdateData { 
   firstname?: string;
   lastname?: string;
-  new_email?: string; // Added new_email
+  new_email?: string; 
 }
+
+export interface RequestPasswordResetPayloadFE {
+    email: string;
+}
+
+export interface ResetPasswordPayloadFE {
+    token: string;
+    new_password: string;
+}
+
+export interface ChangePasswordData {
+    current_password: string;
+    new_password: string;
+}
+
+// --- New Interface for Delete Account ---
+export interface DeleteAccountData {
+    password: string; // Current password to confirm deletion
+}
+// --- End New Interface ---
+
 
 // --- Error Handling ---
 async function handleApiError(response: Response, defaultErrorMessage: string): Promise<never> {
@@ -122,21 +143,15 @@ export async function getUserProfile(token: string): Promise<UserPublic> {
 
 export async function apiUpdateUserProfileText(token: string, profileData: UserProfileUpdateData): Promise<UserPublic> {
   console.log("authService: Attempting to update user profile text/email with data:", profileData);
-  
   const formData = new URLSearchParams();
   if (profileData.firstname !== undefined) formData.append('firstname', profileData.firstname);
   if (profileData.lastname !== undefined) formData.append('lastname', profileData.lastname);
-  if (profileData.new_email !== undefined) formData.append('new_email', profileData.new_email); // Add new_email
-
+  if (profileData.new_email !== undefined) formData.append('new_email', profileData.new_email);
   const response = await fetch(`${API_BASE_URL}/auth/users/me/profile`, {
     method: 'PUT',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/x-www-form-urlencoded', 
-    },
+    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/x-www-form-urlencoded', },
     body: formData.toString(), 
   });
-
   if (!response.ok) {
     console.error(`authService: apiUpdateUserProfileText failed with status ${response.status}`);
     return handleApiError(response, 'Failed to update profile information.');
@@ -150,15 +165,10 @@ export async function apiUploadProfilePicture(token: string, imageFile: File): P
     console.log("authService: Attempting to upload profile picture.");
     const formData = new FormData();
     formData.append('profile_picture', imageFile); 
-
     const response = await fetch(`${API_BASE_URL}/auth/users/me/profile-picture`, {
         method: 'POST',
-        headers: {
-            'Authorization': `Bearer ${token}`,
-        },
-        body: formData,
+        headers: { 'Authorization': `Bearer ${token}` }, body: formData,
     });
-
     if (!response.ok) {
         console.error(`authService: apiUploadProfilePicture failed with status ${response.status}`);
         return handleApiError(response, 'Failed to upload profile picture.');
@@ -166,4 +176,70 @@ export async function apiUploadProfilePicture(token: string, imageFile: File): P
     const data: UserPublic = await response.json();
     console.log("authService: Profile picture uploaded successfully:", data);
     return data;
+}
+
+export async function requestPasswordReset(payload: RequestPasswordResetPayloadFE): Promise<{ message: string }> {
+    console.log("authService: Requesting password reset for email:", payload.email);
+    const response = await fetch(`${API_BASE_URL}/auth/request-password-reset`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+    });
+    if (!response.ok) { 
+        return handleApiError(response, 'Password reset request failed.');
+    }
+    return response.json(); 
+}
+
+export async function resetPassword(payload: ResetPasswordPayloadFE): Promise<{ message: string }> {
+    console.log("authService: Attempting to reset password.");
+    const response = await fetch(`${API_BASE_URL}/auth/reset-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+    });
+    if (!response.ok) {
+        return handleApiError(response, 'Password reset failed. The token might be invalid or expired.');
+    }
+    return response.json(); 
+}
+
+export async function apiChangePassword(token: string, payload: ChangePasswordData): Promise<{ message: string }> {
+    console.log("authService: Attempting to change password.");
+    const response = await fetch(`${API_BASE_URL}/auth/users/me/change-password`, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+    });
+    if (!response.ok) {
+        if (response.status === 401) {
+            throw new Error("Unauthorized: Your session may have expired. Please log in again.");
+        }
+        return handleApiError(response, 'Failed to change password. Please check your current password.');
+    }
+    return response.json(); 
+}
+
+// --- NEW FUNCTION FOR DELETING ACCOUNT ---
+export async function apiDeleteAccount(token: string, payload: DeleteAccountData): Promise<{ message: string }> {
+    console.log("authService: Attempting to delete account.");
+    const response = await fetch(`${API_BASE_URL}/auth/users/me/delete-account`, {
+        method: 'POST', // Changed to POST to send a body, backend uses POST for this too
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+        if (response.status === 401) {
+            throw new Error("Unauthorized: Your session may have expired. Please log in again.");
+        }
+        return handleApiError(response, 'Failed to delete account. Please check your password.');
+    }
+    return response.json(); // Expects { "message": "..." }
 }

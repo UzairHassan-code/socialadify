@@ -1,121 +1,9 @@
 # D:\socialadify\backend\app\schemas\user.py
-# from pydantic import BaseModel, EmailStr, Field, ConfigDict, BeforeValidator, field_validator
-# from typing import Optional, Annotated, Any
-# from bson import ObjectId
-# import re # Import the regular expression module
-
-# # --- Allowed Email Domains ---
-# ALLOWED_EMAIL_DOMAINS = {"gmail.com", "yahoo.com", "outlook.com"}
-
-# # --- Custom Email Domain Validator ---
-# def validate_email_domain(email: EmailStr) -> EmailStr:
-#     if "@" not in email:
-#         raise ValueError("Invalid email format: missing '@' symbol.")
-#     domain = email.split('@', 1)[1].lower() 
-#     if domain not in ALLOWED_EMAIL_DOMAINS:
-#         allowed_domains_str = ", ".join(f"@{d}" for d in ALLOWED_EMAIL_DOMAINS)
-#         raise ValueError(f"Email domain '@{domain}' is not allowed. Please use one of the following: {allowed_domains_str}.")
-#     return email
-
-# # --- Custom Password Validator ---
-# def validate_password_complexity(password: str) -> str:
-#     if len(password) < 8:
-#         raise ValueError("Password must be at least 8 characters long.")
-#     if not re.search(r"[A-Z]", password):
-#         raise ValueError("Password must contain at least one uppercase letter.")
-#     if not re.search(r"[a-z]", password): # Good practice to also ensure lowercase
-#         raise ValueError("Password must contain at least one lowercase letter.")
-#     if not re.search(r"[0-9]", password): # Good practice to also ensure a digit
-#         raise ValueError("Password must contain at least one digit.")
-#     if not re.search(r"[!@#$%^&*()_+\-=\[\]{};':\"\\|,.<>\/?~`]", password): # Common special characters
-#         raise ValueError("Password must contain at least one special character (e.g., !@#$%^&*).")
-#     return password
-
-
-# def validate_object_id(v: Any) -> ObjectId:
-#     if isinstance(v, ObjectId):
-#         return v
-#     if ObjectId.is_valid(v): 
-#         return ObjectId(v)
-#     if isinstance(v, bytes) and len(v) == 12: 
-#         return ObjectId(v)
-#     raise ValueError(f"Invalid ObjectId: {v}")
-
-# PyObjectId = Annotated[ObjectId, BeforeValidator(validate_object_id)]
-
-# class UserBase(BaseModel):
-#     firstname: Optional[str] = None
-#     lastname: Optional[str] = None
-#     profile_picture_url: Optional[str] = None 
-
-# class UserCreate(UserBase):
-#     email: EmailStr 
-#     password: str = Field(..., min_length=8) # Keep min_length here for initial Pydantic check
-#     firstname: str = Field(..., min_length=1) 
-#     lastname: str = Field(..., min_length=1)
-
-#     @field_validator('email')
-#     @classmethod
-#     def check_email_domain_on_create(cls, value: EmailStr) -> EmailStr:
-#         return validate_email_domain(value)
-
-#     @field_validator('password')
-#     @classmethod
-#     def check_password_complexity(cls, value: str) -> str:
-#         return validate_password_complexity(value)
-
-
-# class UserUpdate(BaseModel): 
-#     firstname: Optional[str] = Field(None, min_length=1)
-#     lastname: Optional[str] = Field(None, min_length=1)
-#     new_email: Optional[EmailStr] = Field(None, description="New email address for the user")
-
-#     @field_validator('new_email')
-#     @classmethod
-#     def check_new_email_domain_on_update(cls, value: Optional[EmailStr]) -> Optional[EmailStr]:
-#         if value is None: 
-#             return value
-#         return validate_email_domain(value)
-
-
-# class UserInDBBase(UserBase): 
-#     email: EmailStr 
-#     id: PyObjectId = Field(alias="_id")
-    
-#     model_config = ConfigDict(
-#         populate_by_name=True,
-#         arbitrary_types_allowed=True, 
-#         json_encoders={ObjectId: str}
-#     )
-
-# class UserInDB(UserInDBBase): 
-#     hashed_password: str
-
-# class UserPublic(UserBase): 
-#     email: EmailStr 
-#     id: str 
-
-#     @classmethod
-#     def from_user_in_db(cls, user_in_db: UserInDB) -> "UserPublic":
-#         return cls(
-#             id=str(user_in_db.id),
-#             email=user_in_db.email,
-#             firstname=user_in_db.firstname,
-#             lastname=user_in_db.lastname,
-#             profile_picture_url=user_in_db.profile_picture_url 
-#         )
-
-# class Token(BaseModel):
-#     access_token: str
-#     token_type: str
-
-# class TokenData(BaseModel):
-#     email: Optional[str] = None
-
 from pydantic import BaseModel, EmailStr, Field, ConfigDict, BeforeValidator, field_validator
 from typing import Optional, Annotated, Any
 from bson import ObjectId
 import re # Import the regular expression module
+from datetime import datetime, timedelta # NEW: Import datetime and timedelta
 
 # --- Allowed Email Domains ---
 ALLOWED_EMAIL_DOMAINS = {"gmail.com", "yahoo.com", "outlook.com"}
@@ -136,11 +24,11 @@ def validate_password_complexity(password: str) -> str:
         raise ValueError("Password must be at least 8 characters long.")
     if not re.search(r"[A-Z]", password):
         raise ValueError("Password must contain at least one uppercase letter.")
-    if not re.search(r"[a-z]", password): # Good practice to also ensure lowercase
+    if not re.search(r"[a-z]", password):
         raise ValueError("Password must contain at least one lowercase letter.")
-    if not re.search(r"[0-9]", password): # Good practice to also ensure a digit
+    if not re.search(r"[0-9]", password):
         raise ValueError("Password must contain at least one digit.")
-    if not re.search(r"[!@#$%^&*()_+\-=\[\]{};':\"\\|,.<>\/?~`]", password): # Common special characters
+    if not re.search(r"[!@#$%^&*()_+\-=\[\]{};':\"\\|,.<>\/?~`]", password):
         raise ValueError("Password must contain at least one special character (e.g., !@#$%^&*).")
     return password
 
@@ -163,7 +51,7 @@ class UserBase(BaseModel):
 
 class UserCreate(UserBase):
     email: EmailStr
-    password: str = Field(..., min_length=8) # Keep min_length here for initial Pydantic check
+    password: str = Field(..., min_length=8)
     firstname: str = Field(..., min_length=1)
     lastname: str = Field(..., min_length=1)
 
@@ -182,6 +70,11 @@ class UserUpdate(BaseModel):
     firstname: Optional[str] = Field(None, min_length=1)
     lastname: Optional[str] = Field(None, min_length=1)
     new_email: Optional[EmailStr] = Field(None, description="New email address for the user")
+    # Your changes for password update:
+    password: Optional[str] = Field(None, min_length=8, description="New password for reset")
+    password_reset_token: Optional[str] = Field(None, description="Temporary token for password reset")
+    password_reset_expires: Optional[datetime] = Field(None, description="Expiration time for the password reset token")
+
 
     @field_validator('new_email')
     @classmethod
@@ -190,12 +83,33 @@ class UserUpdate(BaseModel):
             return value
         return validate_email_domain(value)
 
+    # Your validator for new password during reset/update if provided
+    @field_validator('password')
+    @classmethod
+    def check_new_password_complexity(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return value
+        return validate_password_complexity(value)
+
+# New schema for changing password when logged in (from partner's branch if they added it, or common)
+# Assuming this was from your partner's side as it was in your previous security.py log
+class ChangePasswordPayload(BaseModel):
+    current_password: str
+    new_password: str = Field(..., min_length=8)
+
+    @field_validator('new_password')
+    @classmethod
+    def check_new_password_complexity_on_change(cls, value: str) -> str:
+        return validate_password_complexity(value)
+
 
 class UserInDBBase(UserBase):
     email: EmailStr
     id: PyObjectId = Field(alias="_id")
-    # NEW: Add is_admin field with a default value for existing users
     is_admin: bool = False # Default to False
+    # Your changes for password reset token storage in DB
+    password_reset_token: Optional[str] = None
+    password_reset_expires: Optional[datetime] = None
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -219,8 +133,7 @@ class UserPublic(UserBase):
             firstname=user_in_db.firstname,
             lastname=user_in_db.lastname,
             profile_picture_url=user_in_db.profile_picture_url,
-            is_admin=user_in_db.is_admin # Include admin status
-            # is_admin=True 
+            is_admin=user_in_db.is_admin
         )
 
 class Token(BaseModel):
@@ -230,3 +143,15 @@ class Token(BaseModel):
 class TokenData(BaseModel):
     email: Optional[str] = None
 
+# Your new schemas for password reset requests
+class PasswordResetRequest(BaseModel):
+    email: EmailStr
+
+class PasswordResetConfirm(BaseModel):
+    token: str
+    new_password: str = Field(..., min_length=8)
+
+    @field_validator('new_password')
+    @classmethod
+    def check_new_password_complexity(cls, value: str) -> str:
+        return validate_password_complexity(value)
