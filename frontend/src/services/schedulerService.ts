@@ -4,7 +4,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://127.0.0.1:8
 
 export interface ScheduledPostPayload {
     caption: string;
-    scheduled_at_str: string; 
+    scheduled_at_str: string;
     target_platform?: string | null;
 }
 
@@ -13,7 +13,7 @@ export interface ScheduledPost {
     user_id: string;
     caption: string;
     image_url: string;
-    scheduled_at: string; 
+    scheduled_at: string;
     target_platform?: string | null;
     status: string;
     created_at: string;
@@ -22,24 +22,43 @@ export interface ScheduledPost {
 
 async function handleSchedulerApiError(response: Response, defaultErrorMessage: string): Promise<never> {
     let processedErrorMessage = defaultErrorMessage;
+    console.error(`SCHEDULER_SERVICE_HANDLE_ERROR: Status: ${response.status}, Content-Type: ${response.headers.get('Content-Type')}`);
     try {
-        const errorData = await response.json();
-        if (errorData && errorData.detail) {
-            processedErrorMessage = errorData.detail;
-        } else if (response.statusText) {
-            processedErrorMessage = response.statusText;
+        // MODIFIED: Read responseText first, then try to parse as JSON
+        const responseText = await response.text();
+        console.error("SCHEDULER_SERVICE_HANDLE_ERROR: Response Text:", responseText);
+        try {
+            const errorData = JSON.parse(responseText);
+            console.error("SCHEDULER_SERVICE_HANDLE_ERROR: Parsed JSON errorData:", errorData);
+            if (errorData && typeof errorData.detail === 'string') {
+                processedErrorMessage = errorData.detail;
+            } else if (Array.isArray(errorData.detail) && errorData.detail.length > 0) {
+                const firstError = errorData.detail[0];
+                if (typeof firstError === 'object' && firstError !== null && 'msg' in firstError) {
+                    processedErrorMessage = (firstError as { msg: string }).msg;
+                } else {
+                    processedErrorMessage = `Validation errors: ${JSON.stringify(errorData.detail)}`;
+                }
+            } else if (responseText) {
+                processedErrorMessage = responseText; // Fallback to raw text if no structured detail
+            }
+        } catch (jsonParseError) {
+            console.error("SCHEDULER_SERVICE_HANDLE_ERROR: Failed to parse response as JSON.", jsonParseError);
+            if (responseText) {
+                processedErrorMessage = responseText; // Use raw text if JSON parsing fails
+            }
         }
-    } catch (parseError) { 
-        console.warn("Scheduler Service: Could not parse error response as JSON.", parseError);
+    } catch (e) {
+        console.error("SCHEDULER_SERVICE_HANDLE_ERROR: Error reading response body.", e);
     }
-    console.error("Scheduler Service API Error:", processedErrorMessage, "Status:", response.status);
+    console.error("SCHEDULER_SERVICE_THROWING_ERROR_MESSAGE:", processedErrorMessage);
     throw new Error(processedErrorMessage);
 }
 
 export async function createScheduledPost(
     token: string,
     caption: string,
-    scheduled_at_str: string, 
+    scheduled_at_str: string,
     imageFile: File,
     target_platform?: string | null
 ): Promise<ScheduledPost> {
@@ -63,8 +82,8 @@ export async function createScheduledPost(
 }
 
 export async function fetchScheduledPosts(
-    token: string, 
-    skip: number = 0, 
+    token: string,
+    skip: number = 0,
     limit: number = 10
 ): Promise<ScheduledPost[]> {
     const response = await fetch(`${API_BASE_URL}/schedule/?skip=${skip}&limit=${limit}`, {
@@ -91,9 +110,9 @@ export async function fetchScheduledPostById(token: string, postId: string): Pro
 }
 
 export async function updateScheduledPost(
-    token: string, 
-    postId: string, 
-    payload: Partial<ScheduledPostPayload> 
+    token: string,
+    postId: string,
+    payload: Partial<ScheduledPostPayload>
 ): Promise<ScheduledPost> {
     console.log(`schedulerService: Updating scheduled post ID: ${postId} with payload:`, payload);
     const response = await fetch(`${API_BASE_URL}/schedule/${postId}`, {
@@ -119,6 +138,10 @@ export async function deleteScheduledPost(token: string, postId: string): Promis
     });
     if (!response.ok) {
         if (response.status === 401) throw new Error("Unauthorized: Session may have expired. Please log in again.");
-        if (response.status !== 204) return handleSchedulerApiError(response, 'Failed to delete scheduled post.');
+        // MODIFIED: Streamlined error handling for non-204 responses
+        return handleSchedulerApiError(response, 'Failed to delete scheduled post.');
     }
+    // If response.ok is true, and it's a 204 No Content, no further action needed.
+    // If it's a 200 OK with an empty body (less common for DELETE), it's still considered successful.
+    console.log(`schedulerService: Post ID ${postId} deleted successfully.`);
 }

@@ -1,4 +1,3 @@
-
 // D:\socialadify\frontend\src\services\adminService.ts
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
@@ -16,25 +15,16 @@ async function handleAdminApiError(response: Response, defaultErrorMessage: stri
         try {
             const errorData = JSON.parse(responseText);
             console.error("ADMIN_SERVICE_HANDLE_ERROR: Parsed JSON errorData:", errorData);
-            if (errorData && errorData.detail) {
-                const detail = errorData.detail;
-                if (Array.isArray(detail) && detail.length > 0) {
-                    const firstError = detail[0];
-                    if (typeof firstError === 'object' && firstError !== null && 'msg' in firstError && typeof (firstError as { msg: string }).msg === 'string') {
-                        processedErrorMessage = (firstError as { msg: string }).msg;
-                    } else {
-                        processedErrorMessage = `Multiple errors: ${JSON.stringify(detail)}`;
-                    }
-                } else if (typeof detail === 'string') {
-                    processedErrorMessage = detail;
-                } else if (typeof detail === 'object' && detail !== null) {
-                    if ('msg' in detail && typeof (detail as {msg: string}).msg === 'string') {
-                        processedErrorMessage = (detail as {msg: string}).msg;
-                    } else {
-                        processedErrorMessage = JSON.stringify(detail);
-                    }
-                } else if (responseText) {
-                    processedErrorMessage = responseText;
+            // MODIFIED: Streamlined error message extraction
+            if (errorData && typeof errorData.detail === 'string') {
+                processedErrorMessage = errorData.detail;
+            } else if (Array.isArray(errorData.detail) && errorData.detail.length > 0) {
+                // For Pydantic validation errors, FastAPI often returns an array of objects with 'msg'
+                const firstError = errorData.detail[0];
+                if (typeof firstError === 'object' && firstError !== null && 'msg' in firstError) {
+                    processedErrorMessage = (firstError as { msg: string }).msg;
+                } else {
+                    processedErrorMessage = `Validation errors: ${JSON.stringify(errorData.detail)}`;
                 }
             } else if (responseText) {
                 processedErrorMessage = responseText;

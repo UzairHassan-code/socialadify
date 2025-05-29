@@ -5,7 +5,8 @@ import ProtectedRoute from '@/components/ProtectedRoute';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation'; 
 import { useAuth } from '@/context/AuthContext';
-import { ReactNode } from 'react';
+// import { ReactNode } from 'react';
+import { ReactNode, useState } from 'react';
 import Image from 'next/image'; // Import Next.js Image component
 
 // SVG Icons
@@ -17,23 +18,51 @@ const LogoutIcon = ({className = "w-5 h-5"} : {className?: string}) => ( <svg xm
 
 const API_BASE_URL_STATIC = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
 
+// const NavLink: React.FC<{ href: string; children: ReactNode }> = ({ href, children }) => {
+//     const pathname = usePathname();
+//     const isActive = pathname === href || (href === "/home" && pathname === "/"); 
+//     return (
+//         <Link href={href} className={`px-3 py-2 rounded-md text-sm font-medium transition-colors
+//             ${isActive ? 'bg-slate-700 text-white' : 'text-slate-300 hover:bg-slate-700/50 hover:text-white'}`}>
+//             {children}
+//         </Link>
+//     );
+// };
+
 const NavLink: React.FC<{ href: string; children: ReactNode }> = ({ href, children }) => {
     const pathname = usePathname();
-    const isActive = pathname === href || (href === "/home" && pathname === "/"); 
+    // Determine if the link is active.
+    // For the root path "/", it's active only if the pathname is exactly "/".
+    // For other paths (e.g., "/home", "/services"), it's active if the pathname starts with the href.
+    // This handles nested routes like /services/subpage.
+    const isActive = href === "/" ? pathname === "/" : pathname.startsWith(href);
+
+    // Special handling for the "/home" link to also be active on the root "/"
+    const isHomeLinkActive = href === "/home" && pathname === "/";
+
+    const finalIsActive = isActive || isHomeLinkActive;
+
     return (
         <Link href={href} className={`px-3 py-2 rounded-md text-sm font-medium transition-colors
-            ${isActive ? 'bg-slate-700 text-white' : 'text-slate-300 hover:bg-slate-700/50 hover:text-white'}`}>
+            ${finalIsActive ? 'bg-slate-700 text-white' : 'text-slate-300 hover:bg-slate-700/50 hover:text-white'}`}>
             {children}
         </Link>
     );
 };
 
+// export default function HomeLayout({
+//   children,
+// }: {
+//   children: ReactNode;
+// }) {
+//   const { user, isAuthenticated, isAuthReady, logout } = useAuth();
 export default function HomeLayout({
-  children,
+    children,
 }: {
-  children: ReactNode;
+    children: ReactNode;
 }) {
   const { user, isAuthenticated, isAuthReady, logout } = useAuth();
+  const [profileImageError, setProfileImageError] = useState(false); // Add this line
 
   const profilePicUrl = 
     user?.profile_picture_url && user.profile_picture_url.trim() !== '' 
@@ -57,8 +86,7 @@ export default function HomeLayout({
                 </Link>
                 <nav className="hidden md:flex items-center space-x-3 ml-8 lg:ml-10">
                     <NavLink href="/home">Home</NavLink>
-                    <NavLink href="/services">Services</NavLink>
-                    <NavLink href="/about">About Us</NavLink>
+                    
                 </nav>
               </div>
 
@@ -69,7 +97,7 @@ export default function HomeLayout({
                     className="flex items-center p-1 rounded-full hover:bg-slate-700/70 transition-colors group" 
                     title="My Account"
                   >
-                    {profilePicUrl ? (
+                    {/* {profilePicUrl ? (
                         <Image 
                             src={profilePicUrl}
                             alt={user.firstname || 'User'}
@@ -80,7 +108,19 @@ export default function HomeLayout({
                         />
                     ) : (
                         <UserIcon className="h-8 w-8 text-slate-400 group-hover:text-blue-400 transition-colors" /> 
-                    )}
+                    )} */}
+                    {(profilePicUrl && !profileImageError) ? ( // Use profileImageError state here
+    <Image
+        src={profilePicUrl}
+        alt={user.firstname || 'User'}
+        width={40}
+        height={40}
+        className="rounded-full object-cover ring-1 ring-slate-600 group-hover:ring-indigo-300 transition-all"
+        onError={() => setProfileImageError(true)} // Set error state on image load failure
+    />
+) : (
+    <UserIcon className="h-8 w-8 text-slate-300 group-hover:text-indigo-300 transition-colors" />
+)}
                     {user.firstname && (
                       <span className="ml-2 text-xs sm:text-sm font-medium text-slate-300 group-hover:text-white transition-colors hidden md:block">
                         {user.firstname}
@@ -100,8 +140,7 @@ export default function HomeLayout({
             </div>
             <div className="md:hidden flex items-center justify-center space-x-3 py-2 border-t border-slate-700/30">
                 <NavLink href="/home">Home</NavLink>
-                <NavLink href="/services">Services</NavLink>
-                <NavLink href="/about">About Us</NavLink>
+                
             </div>
           </div>
         </header>

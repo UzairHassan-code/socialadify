@@ -57,8 +57,7 @@ export default function CaptionGeneratorLayout({
                   </Link>
                   <nav className="hidden md:flex items-center space-x-3 ml-8 lg:ml-10">
                       <NavLink href="/home">Home</NavLink>
-                      <NavLink href="/services">Services</NavLink>
-                      <NavLink href="/about">About Us</NavLink>
+               
                   </nav>
               </div>
               {isAuthReady && isAuthenticated && user && (
@@ -99,8 +98,7 @@ export default function CaptionGeneratorLayout({
             </div>
             <div className="md:hidden flex items-center justify-center space-x-3 py-2 border-t border-slate-700/30">
                 <NavLink href="/home">Home</NavLink>
-                <NavLink href="/services">Services</NavLink>
-                <NavLink href="/about">About Us</NavLink>
+          
             </div>
           </div>
         </header>
