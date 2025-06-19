@@ -62,7 +62,7 @@
 
 ```bash
 # Clone the repo
-git clone --branch feature/insigh-ad-ai --single-branch https://github.com/uzair-hassan003/SocialAdify.git
+git clone --branch feature/insight-ad-ai --single-branch https://github.com/UzairHassan-code/socialadify
 cd socialAdify
 
 # Frontend setup
