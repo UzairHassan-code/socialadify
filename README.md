@@ -1,18 +1,19 @@
-# 📣 SocialAdify — AI-Powered Social Media Ad Manager 🚀
+# SocialAdify
 
 **SocialAdify** is an AI-driven platform to simplify the process of creating, managing, and optimizing ads on **Facebook**, **Instagram**, and **Google**. Whether you're a solo creator or a business marketer, SocialAdify makes ad management smarter, faster, and easier.
 
 ---
 
-## ✅ Completed Features
+## Completed Features
 
-### ✍️ AI-Powered Caption Generator
+### AI-Powered Caption Generator
 - Generates ad/post captions using AI based on user questionnaire.
 - Supports different tones, emojis, hashtags, and post categories.
 - Leverages image understanding via **BLIP** and **Gemini API** for smart captioning.
 
-### 📊 Insight Ad AI (Analytics Module)
+### Insight Ad AI (Analytics Module)
 - Visualizes ad performance using mock data (Meta & Google).
+- Provide AI suggestion to user based on metrics.
 - Metrics include **CTR, ROI, CPC, Engagement Rate**, and more.
 - Offers time-based trend graphs and exportable reports (**PDF/CSV**).
 - Supports early-stage **AI-driven suggestions** for ad improvement.
@@ -29,7 +30,7 @@
 
 ---
 
-## 🚧 Roadmap
+## Roadmap
 
 - [ ] **Real Ad API Integration** (Meta & Google Ads)
 - [ ] **AI-Powered Ad Placement Engine**
@@ -43,7 +44,7 @@
 
 ---
 
-## 🧰 Tech Stack
+## Tech Stack
 
 | Layer        | Technology             |
 |--------------|------------------------|
@@ -55,7 +56,7 @@
 
 ---
 
-## 🧪 Local Setup
+##  Local Setup to run
 
 ```bash
 # Clone the repo
