@@ -58,9 +58,11 @@
 
 ##  Local Setup to run
 
+##  Note entire work till now is now on branch feature/insight-ad-ai 
+
 ```bash
 # Clone the repo
-git clone https://github.com/UzairHassan-code/socialadify
+git clone --branch feature/insigh-ad-ai --single-branch https://github.com/uzair-hassan003/SocialAdify.git
 cd socialAdify
 
 # Frontend setup
