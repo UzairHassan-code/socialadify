@@ -14,6 +14,7 @@ from app.api.captions.router import router as captions_router
 from app.api.admin.admin_router import router as admin_router # NEW: Import admin router (from your changes)
 from app.api.scheduling.router import router as scheduling_router # NEW: Import scheduling router (from partner's changes)
 from app.db.session import connect_to_mongo, close_mongo_connection
+from app.api.post_generator.router import router as post_generator_router
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -85,5 +86,8 @@ async def read_root():
 async def health_check():
     return {"status": "healthy"}
 
-# To run this (from D:\socialadify\backend\ directory, assuming your venv is active):
-# uvicorn main:app --reload --port 8000
+app.include_router(
+    post_generator_router, 
+    prefix="/post-generator", 
+    tags=["Post Generator"]
+)
