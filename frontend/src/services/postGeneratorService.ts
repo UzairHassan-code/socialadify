@@ -2,7 +2,8 @@
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
 
-// This defines the data we send TO the backend
+// --- Types for the API communication ---
+
 export interface PostGenerationPayload {
     product_name: string;
     target_audience: string;
@@ -10,16 +11,23 @@ export interface PostGenerationPayload {
     tone: string;
     platform: string;
     call_to_action: string;
-    aspect_ratio: string; // *** THIS LINE IS NEW ***
+    aspect_ratio: string;
 }
 
-// This defines the data we receive FROM the backend
 export interface PostGenerationResult {
-    image_data_url: string; // The base64 encoded image
+    image_data_url: string;
     prompt_used: string;
 }
 
-// Error Handling Helper
+// *** NEW TYPE for the save request payload ***
+export interface SavePostPayload {
+    image_data_url: string;
+    prompt_used: string;
+    original_request: PostGenerationPayload;
+}
+
+
+// --- Error Handling Helper ---
 async function handleApiError(response: Response, defaultErrorMessage: string): Promise<never> {
     let processedErrorMessage = defaultErrorMessage;
     try {
@@ -34,7 +42,7 @@ async function handleApiError(response: Response, defaultErrorMessage: string): 
 }
 
 
-// The API Call Function
+// --- API Call Functions ---
 export async function generateVisualPost(token: string, payload: PostGenerationPayload): Promise<PostGenerationResult> {
     console.log("postGeneratorService: Sending payload to backend:", payload);
     
@@ -52,6 +60,29 @@ export async function generateVisualPost(token: string, payload: PostGenerationP
             throw new Error("Unauthorized: Your session may have expired. Please log in again.");
         }
         return handleApiError(response, 'Failed to generate visual post.');
+    }
+
+    return response.json();
+}
+
+// *** NEW FUNCTION to save the post ***
+export async function saveVisualPost(token: string, payload: SavePostPayload): Promise<{ message: string }> {
+    console.log("postGeneratorService: Saving post to DB.");
+    
+    const response = await fetch(`${API_BASE_URL}/post-generator/save`, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+        if (response.status === 401) {
+            throw new Error("Unauthorized: Your session may have expired. Please log in again.");
+        }
+        return handleApiError(response, 'Failed to save the post.');
     }
 
     return response.json();

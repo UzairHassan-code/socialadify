@@ -1,6 +1,6 @@
 // D:\socialadify\frontend\src\services\captionService.ts
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://127.0.0.1:8000';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
 
 export interface CaptionSaveData {
     caption_text: string;
@@ -13,7 +13,7 @@ export interface CaptionSaveData {
     is_edited: boolean; 
 }
 
-export interface CaptionUpdateData { // For updating caption text
+export interface CaptionUpdateData {
     caption_text: string;
 }
 
@@ -31,6 +31,7 @@ export interface SavedCaption {
     source: string;
     created_at: string; 
     updated_at: string; 
+    item_type: "caption"; // *** THIS LINE IS THE FIX ***
 }
 
 async function handleCaptionApiError(response: Response, defaultErrorMessage: string): Promise<never> {
@@ -51,7 +52,6 @@ async function handleCaptionApiError(response: Response, defaultErrorMessage: st
 
 
 export async function saveCaptionToDB(token: string, captionData: CaptionSaveData): Promise<SavedCaption> {
-    console.log("captionService: Attempting to save caption:", captionData);
     const response = await fetch(`${API_BASE_URL}/captions/save`, {
         method: 'POST',
         headers: {
@@ -71,7 +71,6 @@ export async function saveCaptionToDB(token: string, captionData: CaptionSaveDat
 }
 
 export async function fetchUserCaptionHistory(token: string, skip: number = 0, limit: number = 10): Promise<SavedCaption[]> {
-    console.log(`captionService: Fetching caption history (skip: ${skip}, limit: ${limit})`);
     const response = await fetch(`${API_BASE_URL}/captions/history?skip=${skip}&limit=${limit}`, {
         method: 'GET',
         headers: {
@@ -90,7 +89,6 @@ export async function fetchUserCaptionHistory(token: string, skip: number = 0, l
 }
 
 export async function updateSavedCaptionInDB(token: string, captionId: string, updateData: CaptionUpdateData): Promise<SavedCaption> {
-    console.log(`captionService: Attempting to update caption ID: ${captionId}`);
     const response = await fetch(`${API_BASE_URL}/captions/${captionId}`, {
         method: 'PUT',
         headers: {
@@ -110,7 +108,6 @@ export async function updateSavedCaptionInDB(token: string, captionId: string, u
 }
 
 export async function deleteSavedCaptionFromDB(token: string, captionId: string): Promise<void> {
-    console.log(`captionService: Attempting to delete caption ID: ${captionId}`);
     const response = await fetch(`${API_BASE_URL}/captions/${captionId}`, {
         method: 'DELETE',
         headers: {
@@ -122,11 +119,8 @@ export async function deleteSavedCaptionFromDB(token: string, captionId: string)
         if (response.status === 401) {
             throw new Error("Unauthorized: Session may have expired. Please log in again.");
         }
-        // For 204 No Content, response.ok might be true but no JSON body.
-        // For other errors, try to parse.
         if (response.status !== 204) {
              return handleCaptionApiError(response, 'Failed to delete caption.');
         }
     }
-    // No content expected on successful DELETE (204)
 }

@@ -1,8 +1,8 @@
 # D:\socialadify\backend\app\api\captions\schemas.py
 from pydantic import BaseModel, Field
-from typing import List, Optional
+from typing import List, Optional, Literal
 from datetime import datetime
-from app.schemas.user import PyObjectId # Re-use PyObjectId for user_id if storing as ObjectId
+from app.schemas.user import PyObjectId
 from bson import ObjectId
 
 
@@ -34,7 +34,7 @@ class CaptionBase(BaseModel):
     is_edited: bool = False
     source: str = Field(default="ai_generated", description="e.g., 'ai_generated', 'user_edited', 'user_created'")
 
-class CaptionCreate(CaptionBase): # Ensure this class definition is present and correct
+class CaptionCreate(CaptionBase):
     pass
 
 class CaptionUpdate(BaseModel): 
@@ -58,6 +58,9 @@ class CaptionInDB(CaptionInDBBase):
 class CaptionPublic(CaptionInDBBase):
     id: str
     user_id: str
+    # *** THIS IS THE CHANGE ***
+    # Add item_type to allow the unified history endpoint to work without validation errors.
+    item_type: Literal["caption"] = "caption"
     
 class CaptionSaveRequest(BaseModel):
     caption_text: str = Field(..., min_length=1)
@@ -67,4 +70,4 @@ class CaptionSaveRequest(BaseModel):
     include_emojis: Optional[bool] = None
     image_description_used: Optional[str] = None 
     source_image_filename: Optional[str] = None 
-    is_edited: bool = False 
+    is_edited: bool = False

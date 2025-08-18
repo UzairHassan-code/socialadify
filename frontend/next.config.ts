@@ -1,27 +1,38 @@
-// D:\socialadify\frontend\next.config.mjs
+// D:/socialadify/frontend/next.config.ts
+import { NextConfig } from 'next';
+import { Configuration } from 'webpack';
 
 /** @type {import('next').NextConfig} */
-const nextConfig = {
-  reactStrictMode: true, // Or your existing reactStrictMode setting
+const nextConfig: NextConfig = {
+  reactStrictMode: true,
   images: {
     remotePatterns: [
       {
         protocol: 'http',
         hostname: 'localhost',
-        port: '8000', // Important: specify the port your backend is running on
-        pathname: '/static/**', // Allows any path under /static/, good for profile_pics and scheduled_post_images
+        port: '8000',
+        pathname: '/static/**',
       },
       {
-        // This pattern is for the placeholder images we've used
         protocol: 'https',
         hostname: 'placehold.co',
-        port: '', // Default port for https (443)
-        pathname: '/**', // Allow any path on placehold.co
+        port: '',
+        pathname: '/**',
       },
-      // You can add more patterns here if you use images from other external domains
     ],
   },
-  // Any other Next.js configurations you might have...
+  
+  webpack: (config: Configuration, { isServer }: { isServer: boolean }) => {
+    if (!isServer) {
+      // *** THIS IS THE FIX ***
+      // We ensure config.externals is an array before trying to push to it.
+      if (!config.externals) {
+        config.externals = [];
+      }
+      config.externals.push('canvas');
+    }
+    return config;
+  },
 };
 
 export default nextConfig;
