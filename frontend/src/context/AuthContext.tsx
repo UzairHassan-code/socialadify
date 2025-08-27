@@ -2,17 +2,15 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import {
     loginUser as apiLoginUser,
     signupUser as apiSignupUser,
     getUserProfile as apiGetUserProfile,
     LoginFormData,
     SignupData,
-    UserPublic, // This interface from authService now includes profile_picture_url
-    // apiUpdateUserProfileText, // We might call this directly from modal or here
-    // apiUploadProfilePicture, // We might call this directly from modal or here
-} from '@/services/authService';
+    UserPublic,
+} from '../services/authService';
 
 interface AuthContextType {
     user: UserPublic | null;
@@ -25,7 +23,7 @@ interface AuthContextType {
     signup: (userData: SignupData) => Promise<UserPublic | undefined>;
     logout: () => void;
     clearError: () => void;
-    fetchAndUpdateUser: (tokenToUse?: string) => Promise<void>; // Modified to accept optional token
+    fetchAndUpdateUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -37,96 +35,112 @@ interface AuthProviderProps {
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const [user, setUser] = useState<UserPublic | null>(null);
     const [token, setToken] = useState<string | null>(null);
-    const [isLoading, setIsLoading] = useState(false); // General loading for login/signup
-    const [isAuthReady, setIsAuthReady] = useState(false); // For initial token check
+    const [isLoading, setIsLoading] = useState(false);
+    const [isAuthReady, setIsAuthReady] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const router = useRouter();
+    const pathname = usePathname(); // Get current path
 
     const clearError = useCallback(() => { setError(null); }, []);
 
-    const fetchAndUpdateUser = useCallback(async (tokenToUse?: string) => {
-        const currentToken = tokenToUse || localStorage.getItem('authToken'); // Use provided or stored token
-        if (!currentToken) {
-            setUser(null); setToken(null); localStorage.removeItem('authToken');
-            setIsLoading(false); // Ensure loading is false if no token
+    // The fetchAndUpdateUser function is now stable and doesn't depend on changing values like `token`.
+    // It reads directly from localStorage, making it safe to use in other callbacks.
+    const fetchAndUpdateUser = useCallback(async () => {
+        const storedToken = localStorage.getItem('authToken');
+        if (!storedToken) {
+            setUser(null);
+            setToken(null);
+            localStorage.removeItem('authToken');
             return;
         }
-        console.log("AuthProvider: Attempting to fetch/update current user with token.");
-        setIsLoading(true); // MODIFIED: Uncommented to show loading during user fetch
+
+        console.log("AuthProvider: Fetching user profile...");
         try {
-            const fetchedUser = await apiGetUserProfile(currentToken);
+            const fetchedUser = await apiGetUserProfile(storedToken);
             setUser(fetchedUser);
-            setToken(currentToken); // Ensure token state is also set if using tokenToUse
-            if (!localStorage.getItem('authToken')) { // If tokenToUse was provided and not in storage, store it
-                localStorage.setItem('authToken', currentToken);
-            }
-            console.log("AuthProvider: Current user details fetched/updated and set:", fetchedUser);
+            setToken(storedToken);
+            console.log("AuthProvider: User profile fetched and set:", fetchedUser);
         } catch (e) {
-            console.error("AuthProvider: Failed to fetch/update current user details.", e);
-            setUser(null); setToken(null); localStorage.removeItem('authToken');
-            localStorage.removeItem('redirectAfterLogin');
+            console.error("AuthProvider: Failed to fetch user profile.", e);
+            setUser(null);
+            setToken(null);
+            localStorage.removeItem('authToken');
             setError(e instanceof Error ? e.message : "Session expired or invalid.");
-            // Only redirect if not already on login page to avoid loop
-            if (router && typeof window !== 'undefined' && window.location.pathname !== '/login') {
+            // Redirect to login if the user is not already on a public page
+            if (pathname !== '/login' && pathname !== '/signup') {
                 router.push('/login');
             }
-        } finally {
-            setIsLoading(false); // MODIFIED: Uncommented to stop loading after user fetch
         }
-    }, [router]); // Removed token from dependencies as we use currentToken
+    }, [router, pathname]); // Dependencies are stable
 
+    // This useEffect now runs ONLY ONCE when the component first mounts.
+    // It checks for a token and validates it, setting the initial auth state.
     useEffect(() => {
-        const loadAuthData = async () => {
-            clearError();
+        const initializeAuth = async () => {
             const storedToken = localStorage.getItem('authToken');
             if (storedToken) {
-                await fetchAndUpdateUser(storedToken);
-            } else {
-                setUser(null);
-                setToken(null); // Ensure token state is also cleared
+                await fetchAndUpdateUser();
             }
             setIsAuthReady(true);
         };
-        loadAuthData();
-    }, [clearError, fetchAndUpdateUser]);
+        initializeAuth();
+        // The empty dependency array [] ensures this runs only once.
+    }, [fetchAndUpdateUser]);
 
     const login = useCallback(async (credentials: LoginFormData) => {
-        clearError(); setIsLoading(true);
+        clearError();
+        setIsLoading(true);
         try {
             const tokenResponse = await apiLoginUser(credentials);
-            // localStorage.setItem('authToken', tokenResponse.access_token); // fetchAndUpdateUser will handle this
-            await fetchAndUpdateUser(tokenResponse.access_token); // Pass new token to immediately use and store
-            const pathFromStorage = localStorage.getItem('redirectAfterLogin');
-            const defaultRedirect = '/home';
-            const redirectPath = pathFromStorage || defaultRedirect;
-            if (pathFromStorage) localStorage.removeItem('redirectAfterLogin');
+            localStorage.setItem('authToken', tokenResponse.access_token);
+            await fetchAndUpdateUser(); // This will now set the user and token state
+            
+            const redirectPath = localStorage.getItem('redirectAfterLogin') || '/home';
+            localStorage.removeItem('redirectAfterLogin');
             router.push(redirectPath);
         } catch (err) {
-            // MODIFIED: Removed redundant localStorage.removeItem('authToken'); setToken(null); setUser(null);
-            // These are now handled by fetchAndUpdateUser's catch block if the user fetch fails.
             setError(err instanceof Error ? err.message : 'Login failed.');
-            throw err; // Re-throw for page-level handling if needed
-        } finally { setIsLoading(false); }
+            throw err;
+        } finally {
+            setIsLoading(false);
+        }
     }, [router, clearError, fetchAndUpdateUser]);
 
     const signup = useCallback(async (userData: SignupData): Promise<UserPublic | undefined> => {
-        clearError(); setIsLoading(true);
+        clearError();
+        setIsLoading(true);
         try {
-            const createdUser = await apiSignupUser(userData); return createdUser;
-        } catch (err) { setError(err instanceof Error ? err.message : 'Signup failed.'); throw err; }
-        finally { setIsLoading(false); }
+            const createdUser = await apiSignupUser(userData);
+            return createdUser;
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Signup failed.');
+            throw err;
+        } finally {
+            setIsLoading(false);
+        }
     }, [clearError]);
 
     const logout = useCallback(() => {
-        clearError(); localStorage.removeItem('authToken'); localStorage.removeItem('redirectAfterLogin');
-        setToken(null); setUser(null); router.push('/login');
+        clearError();
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('redirectAfterLogin');
+        setToken(null);
+        setUser(null);
+        router.push('/login');
     }, [router, clearError]);
 
-    const isAuthenticated = !!token && !!user;
-
     const contextValue: AuthContextType = {
-        user, token, isAuthenticated, isLoading, isAuthReady, error,
-        login, signup, logout, clearError, fetchAndUpdateUser
+        user,
+        token,
+        isAuthenticated: !!token && !!user,
+        isLoading,
+        isAuthReady,
+        error,
+        login,
+        signup,
+        logout,
+        clearError,
+        fetchAndUpdateUser
     };
 
     return <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>;
@@ -134,6 +148,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
 export const useAuth = (): AuthContextType => {
     const context = useContext(AuthContext);
-    if (context === undefined) { throw new Error('useAuth must be used within an AuthProvider'); }
+    if (context === undefined) {
+        throw new Error('useAuth must be used within an AuthProvider');
+    }
     return context;
 };

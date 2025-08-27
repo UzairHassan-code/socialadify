@@ -2,13 +2,11 @@
 from pydantic import BaseModel, EmailStr, Field, ConfigDict, BeforeValidator, field_validator
 from typing import Optional, Annotated, Any
 from bson import ObjectId
-import re # Import the regular expression module
-from datetime import datetime, timedelta # NEW: Import datetime and timedelta
+import re
+from datetime import datetime, timedelta
 
-# --- Allowed Email Domains ---
+# --- (Validators remain the same) ---
 ALLOWED_EMAIL_DOMAINS = {"gmail.com", "yahoo.com", "outlook.com"}
-
-# --- Custom Email Domain Validator ---
 def validate_email_domain(email: EmailStr) -> EmailStr:
     if "@" not in email:
         raise ValueError("Invalid email format: missing '@' symbol.")
@@ -18,7 +16,6 @@ def validate_email_domain(email: EmailStr) -> EmailStr:
         raise ValueError(f"Email domain '@{domain}' is not allowed. Please use one of the following: {allowed_domains_str}.")
     return email
 
-# --- Custom Password Validator ---
 def validate_password_complexity(password: str) -> str:
     if len(password) < 8:
         raise ValueError("Password must be at least 8 characters long.")
@@ -32,7 +29,6 @@ def validate_password_complexity(password: str) -> str:
         raise ValueError("Password must contain at least one special character (e.g., !@#$%^&*).")
     return password
 
-
 def validate_object_id(v: Any) -> ObjectId:
     if isinstance(v, ObjectId):
         return v
@@ -44,6 +40,7 @@ def validate_object_id(v: Any) -> ObjectId:
 
 PyObjectId = Annotated[ObjectId, BeforeValidator(validate_object_id)]
 
+# --- (Other schemas remain the same) ---
 class UserBase(BaseModel):
     firstname: Optional[str] = None
     lastname: Optional[str] = None
@@ -54,62 +51,62 @@ class UserCreate(UserBase):
     password: str = Field(..., min_length=8)
     firstname: str = Field(..., min_length=1)
     lastname: str = Field(..., min_length=1)
-
     @field_validator('email')
     @classmethod
     def check_email_domain_on_create(cls, value: EmailStr) -> EmailStr:
         return validate_email_domain(value)
-
     @field_validator('password')
     @classmethod
     def check_password_complexity(cls, value: str) -> str:
         return validate_password_complexity(value)
 
-
 class UserUpdate(BaseModel):
     firstname: Optional[str] = Field(None, min_length=1)
     lastname: Optional[str] = Field(None, min_length=1)
     new_email: Optional[EmailStr] = Field(None, description="New email address for the user")
-    # Your changes for password update:
     password: Optional[str] = Field(None, min_length=8, description="New password for reset")
     password_reset_token: Optional[str] = Field(None, description="Temporary token for password reset")
     password_reset_expires: Optional[datetime] = Field(None, description="Expiration time for the password reset token")
-
-
     @field_validator('new_email')
     @classmethod
     def check_new_email_domain_on_update(cls, value: Optional[EmailStr]) -> Optional[EmailStr]:
-        if value is None:
-            return value
+        if value is None: return value
         return validate_email_domain(value)
-
-    # Your validator for new password during reset/update if provided
     @field_validator('password')
     @classmethod
     def check_new_password_complexity(cls, value: Optional[str]) -> Optional[str]:
-        if value is None:
-            return value
+        if value is None: return value
         return validate_password_complexity(value)
 
-# New schema for changing password when logged in (from partner's branch if they added it, or common)
-# Assuming this was from your partner's side as it was in your previous security.py log
 class ChangePasswordPayload(BaseModel):
     current_password: str
     new_password: str = Field(..., min_length=8)
-
     @field_validator('new_password')
     @classmethod
     def check_new_password_complexity_on_change(cls, value: str) -> str:
         return validate_password_complexity(value)
 
+class MetaCredentialsPayload(BaseModel):
+    meta_ad_account_id: str = Field(..., min_length=1)
+    meta_access_token: str = Field(..., min_length=1)
+
 
 class UserInDBBase(UserBase):
     email: EmailStr
     id: PyObjectId = Field(alias="_id")
-    is_admin: bool = False # Default to False
-    # Your changes for password reset token storage in DB
+    is_admin: bool = False
     password_reset_token: Optional[str] = None
     password_reset_expires: Optional[datetime] = None
+    
+    # --- Meta credentials ---
+    meta_ad_account_id: Optional[str] = None
+    meta_access_token: Optional[str] = None
+
+    # --- *** NEW: Google Ads Credentials *** ---
+    google_ad_account_id: Optional[str] = None
+    google_access_token: Optional[str] = None
+    google_refresh_token: Optional[str] = None # Essential for maintaining long-term access
+    google_token_expiry: Optional[datetime] = None # To know when the access token expires
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -123,7 +120,13 @@ class UserInDB(UserInDBBase):
 class UserPublic(UserBase):
     email: EmailStr
     id: str
-    is_admin: bool = False # Also include in public schema for display/frontend logic
+    is_admin: bool = False
+    
+    # Expose the account IDs to the frontend, but NEVER the access tokens
+    meta_ad_account_id: Optional[str] = None
+    
+    # --- *** NEW: Expose Google Ad Account ID *** ---
+    google_ad_account_id: Optional[str] = None
 
     @classmethod
     def from_user_in_db(cls, user_in_db: UserInDB) -> "UserPublic":
@@ -133,7 +136,10 @@ class UserPublic(UserBase):
             firstname=user_in_db.firstname,
             lastname=user_in_db.lastname,
             profile_picture_url=user_in_db.profile_picture_url,
-            is_admin=user_in_db.is_admin
+            is_admin=user_in_db.is_admin,
+            meta_ad_account_id=user_in_db.meta_ad_account_id,
+            # --- *** NEW: Add Google Ad Account ID to the public user model *** ---
+            google_ad_account_id=user_in_db.google_ad_account_id
         )
 
 class Token(BaseModel):
@@ -143,14 +149,12 @@ class Token(BaseModel):
 class TokenData(BaseModel):
     email: Optional[str] = None
 
-# Your new schemas for password reset requests
 class PasswordResetRequest(BaseModel):
     email: EmailStr
 
 class PasswordResetConfirm(BaseModel):
     token: str
     new_password: str = Field(..., min_length=8)
-
     @field_validator('new_password')
     @classmethod
     def check_new_password_complexity(cls, value: str) -> str:

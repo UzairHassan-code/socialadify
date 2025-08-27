@@ -3,14 +3,14 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { useImageContext } from '@/context/ImageContext'; // Import the image context
-import { useRouter } from 'next/navigation'; // Import the router
-import { fetchUnifiedHistory, HistoryItem, SavedPost, deleteVisualPost } from '@/services/historyService';
-import { updateSavedCaptionInDB, deleteSavedCaptionFromDB, SavedCaption, CaptionUpdateData } from '@/services/captionService';
+import { useImageContext } from '@/context/ImageContext';
+import { useRouter } from 'next/navigation';
+import { fetchHistory, deleteVisualPost, HistoryItem, PostHistoryItem, CaptionHistoryItem } from '../../services/historyService';
+import { updateSavedCaptionInDB, deleteSavedCaptionFromDB } from '@/services/captionService';
 import Link from 'next/link';
 import Image from 'next/image';
 
-// --- Icon Components ---
+// --- (Icon Components remain the same) ---
 const EditIcon = ({ className = "w-4 h-4" }: { className?: string }) => ( <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg> );
 const DeleteIcon = ({ className = "w-4 h-4" }: { className?: string }) => ( <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg> );
 const SaveIcon = ({ className = "w-4 h-4" }: { className?: string }) => ( <svg className={className} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg> );
@@ -29,8 +29,8 @@ const formatDate = (dateString: string) => {
 };
 
 const CaptionHistoryCard: React.FC<{
-    caption: SavedCaption;
-    onEdit: (caption: SavedCaption) => void;
+    caption: CaptionHistoryItem;
+    onEdit: (caption: CaptionHistoryItem) => void;
     onDelete: (id: string) => void;
     isEditing: boolean;
     editingText: string;
@@ -45,21 +45,19 @@ const CaptionHistoryCard: React.FC<{
                 <div className="space-y-3">
                     <textarea value={editingText} onChange={(e) => onEditingTextChange(e.target.value)} className="w-full p-3 text-sm border border-sky-500 rounded-md bg-slate-700 text-slate-100 focus:ring-2 focus:ring-sky-400 outline-none min-h-[100px]" rows={4} />
                     <div className="flex justify-end space-x-2">
-                        <button onClick={onCancelEdit} className="px-3 py-1.5 text-xs font-medium text-slate-300 bg-slate-600 hover:bg-slate-500 rounded-md transition-colors disabled:opacity-50" disabled={isLoading}><CancelIcon className="inline mr-1 w-3 h-3"/>Cancel</button>
-                        <button onClick={onSaveUpdate} className="px-3 py-1.5 text-xs font-medium text-white bg-green-600 hover:bg-green-500 rounded-md transition-colors disabled:opacity-50 flex items-center" disabled={isLoading}>{isLoading ? <LoadingSpinner className="w-3 h-3 mr-1.5"/> : <SaveIcon className="inline mr-1 w-3 h-3"/>} Save</button>
+                        <button onClick={onCancelEdit} className="px-3 py-1.5 text-xs font-medium text-slate-300 bg-slate-600 hover:bg-slate-500 rounded-md" disabled={isLoading}><CancelIcon className="inline mr-1 w-3 h-3"/>Cancel</button>
+                        <button onClick={onSaveUpdate} className="px-3 py-1.5 text-xs font-medium text-white bg-green-600 hover:bg-green-500 rounded-md flex items-center" disabled={isLoading}>{isLoading ? <LoadingSpinner className="w-3 h-3 mr-1.5"/> : <SaveIcon className="inline mr-1 w-3 h-3"/>} Save</button>
                     </div>
                 </div>
             ) : (
                 <>
-                    <p className="text-slate-200 text-sm whitespace-pre-wrap leading-relaxed mb-3">{caption.caption_text}</p>
+                    <p className="text-slate-200 text-sm whitespace-pre-wrap leading-relaxed mb-3">{caption.caption}</p>
                     <div className="text-xs text-slate-500 space-y-1 mb-3 pt-2 border-t border-slate-700">
-                        <div className="flex items-center gap-1.5"><ClockIcon/> Saved: {formatDate(caption.created_at)} {caption.is_edited && `(Edited: ${formatDate(caption.updated_at)})`}</div>
-                        {caption.preferences_category && <div className="flex items-center gap-1.5"><TagIcon/> Category: {caption.preferences_category}</div>}
-                        {caption.preferences_tone && <div className="flex items-center gap-1.5"><TagIcon/> Tone: {caption.preferences_tone}</div>}
+                        <div className="flex items-center gap-1.5"><ClockIcon/> Saved: {formatDate(caption.created_at)}</div>
                     </div>
                     <div className="flex justify-end space-x-2">
-                        <button onClick={() => onEdit(caption)} className="p-1.5 text-slate-400 hover:text-sky-400 rounded-md hover:bg-slate-700 transition-colors disabled:opacity-50" disabled={isLoading} title="Edit Caption"><EditIcon /></button>
-                        <button onClick={() => onDelete(caption.id)} className="p-1.5 text-slate-400 hover:text-red-400 rounded-md hover:bg-slate-700 transition-colors disabled:opacity-50" disabled={isLoading} title="Delete Caption"><DeleteIcon /></button>
+                        <button onClick={() => onEdit(caption)} className="p-1.5 text-slate-400 hover:text-sky-400 rounded-md hover:bg-slate-700" disabled={isLoading} title="Edit Caption"><EditIcon /></button>
+                        <button onClick={() => onDelete(caption.id)} className="p-1.5 text-slate-400 hover:text-red-400 rounded-md hover:bg-slate-700" disabled={isLoading} title="Delete Caption"><DeleteIcon /></button>
                     </div>
                 </>
             )}
@@ -67,29 +65,30 @@ const CaptionHistoryCard: React.FC<{
     );
 };
 
-// *** UPDATE THIS COMPONENT to accept the new onCreateCaption prop ***
-const PostHistoryCard: React.FC<{ post: SavedPost; onDelete: (id: string) => void; onCreateCaption: (post: SavedPost) => void; isLoading: boolean; }> = ({ post, onDelete, onCreateCaption, isLoading }) => {
-    const postId = post.id; 
-
+const PostHistoryCard: React.FC<{ post: PostHistoryItem; onDelete: (id: string) => void; onCreateCaption: (post: PostHistoryItem) => void; isLoading: boolean; }> = ({ post, onDelete, onCreateCaption, isLoading }) => {
     return (
         <div className="bg-slate-800/70 backdrop-blur-md shadow-xl rounded-xl p-5 border border-slate-700 flex flex-col sm:flex-row gap-5">
             <div className="w-full sm:w-40 h-40 flex-shrink-0 relative rounded-lg overflow-hidden bg-slate-700">
-                <Image src={`${API_BASE_URL_STATIC}${post.image_url}`} alt="Generated ad" layout="fill" objectFit="cover" />
+                <Image 
+                    src={`${API_BASE_URL_STATIC}${post.image_url}`} 
+                    alt="Generated ad" 
+                    fill 
+                    sizes="(max-width: 640px) 100vw, 10rem"
+                    priority={true}
+                    className="object-cover"
+                />
             </div>
-            <div className="flex-grow">
+            <div className="flex-grow flex flex-col">
                 <p className="text-sm font-semibold text-slate-200 mb-2">Visual Post</p>
-                <p className="text-xs text-slate-400 mb-3 font-mono bg-slate-700/50 p-2 rounded-md">Prompt: {post.prompt_used}</p>
-                <div className="text-xs text-slate-500 space-y-1 pt-2 border-t border-slate-700">
+                <div className="text-xs text-slate-500 space-y-1 pt-2 border-t border-slate-700 mt-auto">
                     <div className="flex items-center gap-1.5"><ClockIcon/> Saved: {formatDate(post.created_at)}</div>
-                    <div className="flex items-center gap-1.5"><TagIcon/> Dimensions: {post.original_request.aspect_ratio}</div>
                 </div>
             </div>
-            {/* *** ADD CREATE CAPTION BUTTON HERE *** */}
             <div className="flex flex-col gap-2 items-center">
-                <button onClick={() => onCreateCaption(post)} className="p-1.5 text-slate-400 hover:text-teal-400 rounded-md hover:bg-slate-700 transition-colors disabled:opacity-50" disabled={isLoading} title="Create Caption for this Post">
+                <button onClick={() => onCreateCaption(post)} className="p-1.5 text-slate-400 hover:text-teal-400 rounded-md hover:bg-slate-700" disabled={isLoading} title="Create Caption for this Post">
                     <CaptionIcon />
                 </button>
-                <button onClick={() => onDelete(postId)} className="p-1.5 text-slate-400 hover:text-red-400 rounded-md hover:bg-slate-700 transition-colors disabled:opacity-50" disabled={isLoading} title="Delete Post">
+                <button onClick={() => onDelete(post.id)} className="p-1.5 text-slate-400 hover:text-red-400 rounded-md hover:bg-slate-700" disabled={isLoading} title="Delete Post">
                     <DeleteIcon />
                 </button>
             </div>
@@ -107,9 +106,6 @@ export default function HistoryPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     
-    const [savedCaptions, setSavedCaptions] = useState<SavedCaption[]>([]);
-    const [savedPosts, setSavedPosts] = useState<SavedPost[]>([]);
-    
     const [editingCaptionId, setEditingCaptionId] = useState<string | null>(null);
     const [editingText, setEditingText] = useState("");
 
@@ -122,7 +118,7 @@ export default function HistoryPage() {
         setIsLoading(true);
         setError(null);
         try {
-            const data = await fetchUnifiedHistory(token);
+            const data = await fetchHistory(token);
             setHistoryItems(data);
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : "Failed to load history.";
@@ -142,14 +138,7 @@ export default function HistoryPage() {
         }
     }, [isAuthReady, isAuthenticated, loadHistory]);
 
-    useEffect(() => {
-        const captions = historyItems.filter((item): item is SavedCaption => item.item_type === 'caption');
-        const posts = historyItems.filter((item): item is SavedPost => item.item_type === 'post').map(post => ({ ...post, id: (post as any)._id || post.id }));
-        setSavedCaptions(captions);
-        setSavedPosts(posts);
-    }, [historyItems]);
-
-    const handleEditCaption = (caption: SavedCaption) => { setEditingCaptionId(caption.id); setEditingText(caption.caption_text); };
+    const handleEditCaption = (caption: CaptionHistoryItem) => { setEditingCaptionId(caption.id); setEditingText(caption.caption); };
     const handleCancelEdit = () => { setEditingCaptionId(null); setEditingText(""); };
     const handleSaveUpdate = async () => {
         if (!token || !editingCaptionId) return;
@@ -186,8 +175,7 @@ export default function HistoryPage() {
         }
     };
 
-    // *** NEW FUNCTION to handle creating a caption from a saved post ***
-    const handleCreateCaptionFromHistory = async (post: SavedPost) => {
+    const handleCreateCaptionFromHistory = async (post: PostHistoryItem) => {
         try {
             const response = await fetch(`${API_BASE_URL_STATIC}${post.image_url}`);
             const blob = await response.blob();
@@ -203,6 +191,9 @@ export default function HistoryPage() {
     if (!isAuthReady) {
         return <div className="flex items-center justify-center min-h-[calc(100vh-200px)]"><LoadingSpinner className="w-10 h-10 text-sky-400"/></div>;
     }
+
+    const savedPosts = historyItems.filter((item): item is PostHistoryItem => item.item_type === 'post');
+    const savedCaptions = historyItems.filter((item): item is CaptionHistoryItem => item.item_type === 'caption');
 
     return (
         <div className="space-y-8">
@@ -232,11 +223,11 @@ export default function HistoryPage() {
                 <div className="space-y-12">
                     {savedPosts.length > 0 && (
                         <section>
-                            <h1 className="text-2xl font-bold text-slate-200 mb-6 border-b border-slate-700 pb-3">Saved Visual Posts</h1>
+                            <h2 className="text-2xl font-bold text-slate-200 mb-6 border-b border-slate-700 pb-3">Saved Visual Posts</h2>
                             <div className="space-y-6">
                                 {savedPosts.map(item => (
                                     <PostHistoryCard 
-                                        key={item.id} 
+                                        key={`post-${item.id}`} 
                                         post={item} 
                                         onDelete={handleDeletePost} 
                                         onCreateCaption={handleCreateCaptionFromHistory}
@@ -248,11 +239,11 @@ export default function HistoryPage() {
                     )}
                     {savedCaptions.length > 0 && (
                         <section>
-                            <h1 className="text-2xl font-bold text-slate-200 mb-6 border-b border-slate-700 pb-3">Saved Captions</h1>
+                            <h2 className="text-2xl font-bold text-slate-200 mb-6 border-b border-slate-700 pb-3">Saved Captions</h2>
                             <div className="space-y-6">
                                 {savedCaptions.map(item => (
                                     <CaptionHistoryCard
-                                        key={item.id}
+                                        key={`caption-${item.id}`}
                                         caption={item}
                                         onEdit={handleEditCaption}
                                         onDelete={handleDeleteCaption}

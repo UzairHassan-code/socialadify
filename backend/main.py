@@ -7,7 +7,6 @@ from pathlib import Path
 import logging
 
 # --- Imports from your 'app' package ---
-# Using the structure from your old file for consistency
 from app.api.auth.auth_router import router as auth_router
 from app.api.insights.router import router as insights_router
 from app.api.captions.router import router as captions_router
@@ -15,8 +14,11 @@ from app.api.admin.admin_router import router as admin_router
 from app.api.scheduling.router import router as scheduling_router
 from app.api.post_generator.router import router as post_generator_router
 from app.db.session import connect_to_mongo, close_mongo_connection
-from app.core.config import FRONTEND_URL # Using config for FRONTEND_URL
+from app.core.config import CLIENT_HOST
 from app.api.history.router import router as history_router
+from app.api.insights import meta_router 
+from app.api.auth import google_auth_router
+from app.api.insights import google_ads_router
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -52,8 +54,8 @@ except Exception as e:
     logger.error(f"CRITICAL: Failed to mount static files directory: {e}", exc_info=True)
 
 # --- CORS Middleware ---
-if FRONTEND_URL:
-    origins = [FRONTEND_URL, "http://localhost:3000", "http://127.0.0.1:3000"]
+if CLIENT_HOST:
+    origins = [CLIENT_HOST, "http://localhost:3000", "http://127.0.0.1:3000"]
     app.add_middleware(
         CORSMiddleware,
         allow_origins=list(set(origins)), # Use set to avoid duplicate origins
@@ -62,7 +64,7 @@ if FRONTEND_URL:
         allow_headers=["*"],
     )
 else:
-    logger.warning("FRONTEND_URL not set, CORS will not be configured.")
+    logger.warning("CLIENT_HOST not set, CORS will not be configured.")
 
 
 # --- API Routers ---
@@ -73,6 +75,9 @@ app.include_router(admin_router, prefix="/admin", tags=["Admin Panel"])
 app.include_router(scheduling_router, prefix="/schedule", tags=["Post Scheduling"])
 app.include_router(post_generator_router, prefix="/post-generator", tags=["Post Generator"])
 app.include_router(history_router, prefix="/history", tags=["History"])
+app.include_router(meta_router.router, prefix="/insights/meta", tags=["Meta Insights"]) 
+app.include_router(google_auth_router.router, prefix="/auth", tags=["Authentication"]) 
+app.include_router(google_ads_router.router, prefix="/insights", tags=["Google Ads Insights"])
 
 
 # --- Root and Health Check Endpoints ---

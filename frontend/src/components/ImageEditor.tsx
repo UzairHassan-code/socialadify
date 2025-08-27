@@ -1,3 +1,4 @@
+// D:\socialadify\frontend\src\components\ImageEditor.tsx
 'use client';
 
 import React, { useCallback } from 'react';

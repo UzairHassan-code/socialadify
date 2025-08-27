@@ -1,5 +1,4 @@
-# D:\socialadify\backend\app\api\captions\schemas.py
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, computed_field
 from typing import List, Optional, Literal
 from datetime import datetime
 from app.schemas.user import PyObjectId
@@ -58,10 +57,25 @@ class CaptionInDB(CaptionInDBBase):
 class CaptionPublic(CaptionInDBBase):
     id: str
     user_id: str
-    # *** THIS IS THE CHANGE ***
-    # Add item_type to allow the unified history endpoint to work without validation errors.
     item_type: Literal["caption"] = "caption"
     
+    # *** THIS IS THE NEW, CORRECT FIX ***
+    # We create a new 'caption' field for the API response.
+    # Its value is computed from the 'caption_text' field.
+    @computed_field
+    @property
+    def caption(self) -> str:
+        return self.caption_text
+    
+    # We now configure the model to hide the original 'caption_text' field
+    # from the final JSON response to avoid sending redundant data.
+    model_config = {
+        "fields": {'caption_text': {'exclude': True}},
+        "populate_by_name": True,
+        "arbitrary_types_allowed": True,
+        "json_encoders": {ObjectId: str}
+    }
+        
 class CaptionSaveRequest(BaseModel):
     caption_text: str = Field(..., min_length=1)
     category: Optional[str] = None

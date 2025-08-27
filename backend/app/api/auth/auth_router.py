@@ -13,6 +13,7 @@ from app.schemas.user import UserCreate, UserPublic, Token, UserInDB, UserUpdate
 from app.crud import user as user_service
 from app.core.security import create_access_token, get_current_active_user
 from app.db.session import get_database
+from app.schemas.user import MetaCredentialsPayload # Import the new schema
 
 _BACKEND_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 PROFILE_PICS_DIR = _BACKEND_ROOT / "static" / "profile_pics"
@@ -141,3 +142,32 @@ async def upload_profile_picture(
         raise HTTPException(status_code=500, detail="Could not update profile picture information.")
     logger.info(f"Profile picture for {updated_user_db.email} updated successfully. URL: {profile_picture_url_path}")
     return UserPublic.from_user_in_db(updated_user_db)
+
+# --- *** NEW ENDPOINT to save Meta credentials *** ---
+
+
+@router.put("/users/me/meta-credentials", response_model=UserPublic)
+async def set_user_meta_credentials(
+    credentials: MetaCredentialsPayload,
+    current_user: CurrentUserDependency,
+    db: DbDependency
+):
+    """
+    Allows an authenticated user to save their Meta Ad Account ID and Access Token.
+    """
+    logger.info(f"User {current_user.email} is updating their Meta credentials.")
+    
+    updated_user = await user_service.update_user_meta_credentials(
+        db=db,
+        user_id=current_user.id,
+        ad_account_id=credentials.meta_ad_account_id,
+        access_token=credentials.meta_access_token
+    )
+    
+    if not updated_user:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Could not update Meta credentials."
+        )
+        
+    return UserPublic.from_user_in_db(updated_user)

@@ -15,21 +15,20 @@ logger = logging.getLogger(__name__)
 async def create_scheduled_post(
     db: AsyncIOMotorDatabase, 
     user_id: ObjectId, 
-    image_url: str, # The path/URL where the image is stored
-    post_create_data: ScheduledPostCreate # Contains caption, scheduled_at_str, etc.
+    image_url: str,
+    post_create_data: ScheduledPostCreate
 ) -> ScheduledPostInDB:
     """
-    Saves a new scheduled post to the database for a specific user.
+    Saves a new scheduled post to the database for a specific user,
+    including new automation and boosting settings.
     """
     logger.info(f"Attempting to schedule post for user_id: {user_id}")
     collection: AsyncIOMotorCollection = db[SCHEDULED_POSTS_COLLECTION]
     
     try:
-        # Convert scheduled_at_str to datetime object
-        # The frontend should send ISO format string e.g. "2023-10-27T14:30:00"
         scheduled_at_dt = datetime.fromisoformat(post_create_data.scheduled_at_str)
     except ValueError:
-        logger.error(f"Invalid datetime format for scheduled_at_str: {post_create_data.scheduled_at_str}")
+        logger.error(f"Invalid datetime format: {post_create_data.scheduled_at_str}")
         raise ValueError("Invalid scheduled_at format. Please use ISO format (YYYY-MM-DDTHH:MM:SS).")
 
     post_doc = {
@@ -38,9 +37,14 @@ async def create_scheduled_post(
         "caption": post_create_data.caption,
         "scheduled_at": scheduled_at_dt,
         "target_platform": post_create_data.target_platform,
-        "status": "scheduled", # Default status
+        "status": "scheduled",
         "created_at": datetime.utcnow(),
         "updated_at": datetime.utcnow(),
+        # --- ADD NEW FIELDS TO THE DOCUMENT ---
+        "auto_post": post_create_data.auto_post,
+        "auto_boost": post_create_data.auto_boost,
+        "boost_budget": post_create_data.boost_budget,
+        "boost_duration_days": post_create_data.boost_duration_days,
     }
     
     result = await collection.insert_one(post_doc)

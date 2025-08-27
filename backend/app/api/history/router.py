@@ -37,23 +37,29 @@ async def get_unified_history(
     # 2. Fetch all saved visual posts
     posts_in_db = await post_crud.get_generated_posts_by_user_id(db=db, user_id=user_id)
     
-    # 3. Add a literal 'item_type' to captions for the frontend
+    # 3. Process captions to add item_type and format ID
     typed_captions = []
     for caption in captions_in_db:
         caption_dict = caption.model_dump()
-        
-        # *** THIS IS THE FIX ***
-        # Manually convert ObjectId fields to strings before validation.
         caption_dict["id"] = str(caption_dict["id"])
         caption_dict["user_id"] = str(caption_dict["user_id"])
-        
         caption_dict["item_type"] = "caption"
         typed_captions.append(CaptionPublic.model_validate(caption_dict))
         
-    # 4. Combine the two lists
-    combined_history = typed_captions + posts_in_db
+    # 4. *** THIS IS THE FIX ***
+    # Process posts to add item_type and format ID, just like captions
+    typed_posts = []
+    for post in posts_in_db:
+        post_dict = post.model_dump()
+        post_dict["id"] = str(post_dict["id"])
+        post_dict["user_id"] = str(post_dict["user_id"])
+        post_dict["item_type"] = "post"
+        typed_posts.append(GeneratedPostPublic.model_validate(post_dict))
+        
+    # 5. Combine the two PROCESSED lists
+    combined_history = typed_captions + typed_posts
     
-    # 5. Sort the combined list by 'created_at' date, newest first
+    # 6. Sort the combined list by 'created_at' date, newest first
     combined_history.sort(key=lambda item: item.created_at, reverse=True)
     
     return combined_history

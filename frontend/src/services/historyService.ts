@@ -1,22 +1,29 @@
 // D:\socialadify\frontend\src\services\historyService.ts
 
-import { SavedCaption } from './captionService';
-import { PostGenerationPayload } from './postGeneratorService';
-
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
 
-export interface SavedPost {
+// Define the types for the items we'll get from the history
+interface BaseHistoryItem {
     id: string;
     user_id: string;
-    image_url: string;
-    prompt_used: string;
-    original_request: PostGenerationPayload; 
+    caption: string;
     created_at: string;
-    item_type: "post";
 }
 
-export type HistoryItem = SavedCaption | SavedPost;
+export interface CaptionHistoryItem extends BaseHistoryItem {
+    item_type: 'caption';
+    // Caption-specific fields if any
+}
 
+export interface PostHistoryItem extends BaseHistoryItem {
+    item_type: 'post';
+    image_url: string;
+    // Post-specific fields if any
+}
+
+export type HistoryItem = CaptionHistoryItem | PostHistoryItem;
+
+// --- Error Handling ---
 async function handleApiError(response: Response, defaultErrorMessage: string): Promise<never> {
     let processedErrorMessage = defaultErrorMessage;
     try {
@@ -28,26 +35,30 @@ async function handleApiError(response: Response, defaultErrorMessage: string): 
     throw new Error(processedErrorMessage);
 }
 
-export async function fetchUnifiedHistory(token: string): Promise<HistoryItem[]> {
+
+/**
+ * Fetches the unified history for the current user.
+ * @param token The user's JWT for authentication.
+ * @returns A promise that resolves to an array of HistoryItem objects.
+ */
+export async function fetchHistory(token: string): Promise<HistoryItem[]> {
     const response = await fetch(`${API_BASE_URL}/history/`, {
         method: 'GET',
         headers: {
             'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
         },
     });
 
     if (!response.ok) {
-        if (response.status === 401) throw new Error("Unauthorized: Your session may have expired.");
         return handleApiError(response, 'Failed to fetch history.');
     }
+    
     return response.json();
 }
 
-// --- NEW FUNCTION TO DELETE A VISUAL POST ---
 export async function deleteVisualPost(token: string, postId: string): Promise<void> {
-    console.log(`historyService: Deleting visual post ID: ${postId}`);
-    
+    // This assumes your backend has a delete endpoint for posts.
+    // We may need to add this if it doesn't exist.
     const response = await fetch(`${API_BASE_URL}/post-generator/${postId}`, {
         method: 'DELETE',
         headers: {
@@ -56,8 +67,6 @@ export async function deleteVisualPost(token: string, postId: string): Promise<v
     });
 
     if (!response.ok) {
-        if (response.status === 401) throw new Error("Unauthorized: Your session may have expired.");
-        return handleApiError(response, 'Failed to delete the visual post.');
+        return handleApiError(response, 'Failed to delete visual post.');
     }
-    // A 204 No Content response has no body to parse
 }

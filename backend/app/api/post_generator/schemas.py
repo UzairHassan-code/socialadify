@@ -33,15 +33,18 @@ class SavePostRequest(BaseModel):
     prompt_used: str
     original_request: PostGenerationRequest
 
-# --- NEW PUBLIC SCHEMA ---
+# --- UPDATED PUBLIC SCHEMA ---
 class GeneratedPostPublic(BaseModel):
+    # *** THIS IS THE FIX ***
+    # The alias is re-added. This allows Pydantic to correctly map
+    # the '_id' field from the database to the 'id' field in the model.
     id: str = Field(alias="_id")
     user_id: str
     image_url: str
     prompt_used: str
     original_request: PostGenerationRequest
     created_at: datetime
-    item_type: Literal["post"] = "post" # Add a literal type for the frontend
+    item_type: Literal["post"] = "post"
 
     class Config:
         populate_by_name = True

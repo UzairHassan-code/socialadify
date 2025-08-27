@@ -15,7 +15,6 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 async def get_user_by_email(db: AsyncIOMotorDatabase, email: str) -> Optional[UserInDB]:
-    # ... (existing code)
     logger.info(f"Attempting to retrieve user by email: {email}")
     users_collection: AsyncIOMotorCollection = db[USERS_COLLECTION]
     user_data = await users_collection.find_one({"email": email.lower()}) 
@@ -25,8 +24,19 @@ async def get_user_by_email(db: AsyncIOMotorDatabase, email: str) -> Optional[Us
     logger.info(f"No user found for email: {email.lower()}")
     return None
 
+async def get_user_by_id(db: AsyncIOMotorDatabase, user_id: str) -> Optional[UserInDB]:
+    """
+    Retrieves a user from the database by their ObjectId.
+    """
+    if not ObjectId.is_valid(user_id):
+        return None
+    
+    user_doc = await db["users"].find_one({"_id": ObjectId(user_id)})
+    if user_doc:
+        return UserInDB(**user_doc)
+    return None
+
 async def create_user(db: AsyncIOMotorDatabase, user_create: UserCreate) -> UserPublic:
-    # ... (existing code)
     logger.info(f"Attempting to create user with email: {user_create.email}")
     existing_user = await get_user_by_email(db, email=user_create.email.lower())
     if existing_user:
@@ -48,7 +58,6 @@ async def create_user(db: AsyncIOMotorDatabase, user_create: UserCreate) -> User
     return UserPublic.from_user_in_db(user_in_db_obj)
 
 async def authenticate_user(db: AsyncIOMotorDatabase, email: str, password: str) -> Optional[UserInDB]:
-    # ... (existing code)
     logger.info(f"Attempting to authenticate user: {email}")
     user = await get_user_by_email(db, email=email.lower())
     if not user:
@@ -68,7 +77,6 @@ async def update_user_profile(
     user_update_data: UserUpdate, 
     profile_picture_url: Optional[str] = None 
 ) -> Optional[UserInDB]:
-    # ... (existing code)
     users_collection: AsyncIOMotorCollection = db[USERS_COLLECTION]
     update_data: Dict[str, Any] = {}
     if user_update_data.firstname is not None: update_data["firstname"] = user_update_data.firstname
@@ -98,7 +106,6 @@ async def update_user_profile(
     return None
 
 async def set_password_reset_token(db: AsyncIOMotorDatabase, user: UserInDB, token: str, expires_delta_seconds: int) -> bool:
-    # ... (existing code)
     users_collection: AsyncIOMotorCollection = db[USERS_COLLECTION]
     expires_at = datetime.utcnow() + timedelta(seconds=expires_delta_seconds)
     result = await users_collection.update_one(
@@ -108,7 +115,6 @@ async def set_password_reset_token(db: AsyncIOMotorDatabase, user: UserInDB, tok
     return result.modified_count == 1
 
 async def get_user_by_password_reset_token(db: AsyncIOMotorDatabase, token: str) -> Optional[UserInDB]:
-    # ... (existing code)
     users_collection: AsyncIOMotorCollection = db[USERS_COLLECTION]
     user_data = await users_collection.find_one({
         "password_reset_token": token,
@@ -119,7 +125,6 @@ async def get_user_by_password_reset_token(db: AsyncIOMotorDatabase, token: str)
     return None
 
 async def update_user_password(db: AsyncIOMotorDatabase, user: UserInDB, new_password: str) -> bool: 
-    # ... (existing code)
     users_collection: AsyncIOMotorCollection = db[USERS_COLLECTION]
     hashed_password = get_password_hash(new_password)
     result = await users_collection.update_one(
@@ -129,7 +134,6 @@ async def update_user_password(db: AsyncIOMotorDatabase, user: UserInDB, new_pas
     return result.modified_count == 1
 
 async def change_password(db: AsyncIOMotorDatabase, user: UserInDB, current_password: str, new_password: str) -> bool:
-    # ... (existing code from previous step)
     logger.info(f"Attempting to change password for user: {user.email}")
     if not verify_password(current_password, user.hashed_password):
         logger.warning(f"Current password verification failed for user: {user.email}")
@@ -146,7 +150,6 @@ async def change_password(db: AsyncIOMotorDatabase, user: UserInDB, current_pass
     logger.error(f"Failed to update password in DB for user: {user.email}, though current password was correct.")
     return False
 
-# --- New CRUD function to delete a user ---
 async def delete_user(db: AsyncIOMotorDatabase, user: UserInDB, current_password_to_verify: str) -> bool:
     """
     Deletes a user and their associated data after verifying their current password.
@@ -158,33 +161,94 @@ async def delete_user(db: AsyncIOMotorDatabase, user: UserInDB, current_password
 
     users_collection: AsyncIOMotorCollection = db[USERS_COLLECTION]
     
-    # Step 1: Delete associated data (e.g., captions)
-    # It's good practice to do this first, or within a transaction if your DB supports it.
     try:
         deleted_captions_count = await delete_captions_by_user_id(db, user_id=user.id)
         logger.info(f"Deleted {deleted_captions_count} captions for user {user.email} during account deletion.")
     except Exception as e:
         logger.error(f"Error deleting captions for user {user.email} during account deletion: {e}", exc_info=True)
-        # Decide if you want to proceed with user deletion or halt. For now, we'll proceed.
-        # In a production system, you might want to log this for manual cleanup or use transactions.
 
-    # Step 2: Delete the user
     delete_result = await users_collection.delete_one({"_id": user.id})
     
     if delete_result.deleted_count == 1:
         logger.info(f"User account deleted successfully: {user.email} (ID: {user.id})")
-        # TODO: Consider deleting user's profile picture from static files if it exists.
-        # This would require knowing the profile_picture_url and using os.remove.
-        # Example:
-        # if user.profile_picture_url and user.profile_picture_url.startswith("/static/profile_pics/"):
-        #     filename = user.profile_picture_url.split("/")[-1]
-        #     # Assuming PROFILE_PICS_DIR is accessible here or passed as an argument
-        #     # from app.main import PROFILE_PICS_DIR # (or get from config)
-        #     # file_to_delete = PROFILE_PICS_DIR / filename
-        #     # if file_to_delete.exists():
-        #     #     try: os.remove(file_to_delete); logger.info(f"Deleted profile picture: {file_to_delete}")
-        #     #     except Exception as e_del: logger.error(f"Error deleting profile pic {file_to_delete}: {e_del}")
         return True
     
     logger.error(f"Failed to delete user account from DB for user: {user.email}, though password was correct.")
-    return False # Should ideally not happen if password was correct and user exists.
+    return False
+
+async def update_user_meta_credentials(
+    db: AsyncIOMotorDatabase, 
+    user_id: ObjectId, 
+    ad_account_id: str, 
+    access_token: str
+) -> Optional[UserInDB]:
+    """
+    Updates a user's Meta Ad Account ID and Access Token in the database.
+    """
+    logger.info(f"Updating Meta credentials for user ID: {user_id}")
+    users_collection: AsyncIOMotorCollection = db[USERS_COLLECTION]
+    
+    update_data = {
+        "meta_ad_account_id": ad_account_id,
+        "meta_access_token": access_token
+    }
+    
+    result = await users_collection.update_one(
+        {"_id": user_id},
+        {"$set": update_data}
+    )
+    
+    if result.matched_count > 0:
+        logger.info(f"Successfully updated Meta credentials for user ID: {user_id}")
+        updated_user_data = await users_collection.find_one({"_id": user_id})
+        if updated_user_data:
+            return UserInDB(**updated_user_data)
+    
+    logger.warning(f"Failed to update Meta credentials for user ID: {user_id}. User not found.")
+    return None
+
+async def update_user_google_credentials(
+    db: AsyncIOMotorDatabase, 
+    user_id: ObjectId, 
+    access_token: str, 
+    refresh_token: str, 
+    expiry: datetime
+) -> Optional[UserInDB]:
+    """
+    Updates a user's document with their Google OAuth tokens.
+    """
+    update_data = {
+        "google_access_token": access_token,
+        "google_refresh_token": refresh_token,
+        "google_token_expiry": expiry
+    }
+    
+    await db["users"].update_one(
+        {"_id": user_id},
+        {"$set": update_data}
+    )
+    
+    updated_user_doc = await db["users"].find_one({"_id": user_id})
+    if updated_user_doc:
+        return UserInDB(**updated_user_doc)
+    return None
+
+async def set_user_google_ad_account(
+    db: AsyncIOMotorDatabase, 
+    user_id: ObjectId, 
+    ad_account_id: str
+) -> Optional[UserInDB]:
+    """
+    Sets the user's chosen Google Ad Account ID in the database.
+    """
+    update_data = {"google_ad_account_id": ad_account_id}
+    
+    await db["users"].update_one(
+        {"_id": user_id},
+        {"$set": update_data}
+    )
+    
+    updated_user_doc = await db["users"].find_one({"_id": user_id})
+    if updated_user_doc:
+        return UserInDB(**updated_user_doc)
+    return None
