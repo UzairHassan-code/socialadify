@@ -1,4 +1,4 @@
-// D:\socialadify\frontend\src\context\AuthContext.tsx
+// D:/socialadify/frontend/src/context/AuthContext.tsx
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
@@ -39,42 +39,42 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const [isAuthReady, setIsAuthReady] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const router = useRouter();
-    const pathname = usePathname(); // Get current path
+    const pathname = usePathname();
 
     const clearError = useCallback(() => { setError(null); }, []);
 
-    // The fetchAndUpdateUser function is now stable and doesn't depend on changing values like `token`.
-    // It reads directly from localStorage, making it safe to use in other callbacks.
+    // --- THIS FUNCTION IS UPDATED ---
     const fetchAndUpdateUser = useCallback(async () => {
         const storedToken = localStorage.getItem('authToken');
         if (!storedToken) {
             setUser(null);
             setToken(null);
-            localStorage.removeItem('authToken');
             return;
         }
 
-        console.log("AuthProvider: Fetching user profile...");
+        console.log("AuthProvider: Fetching updated user profile...");
         try {
             const fetchedUser = await apiGetUserProfile(storedToken);
-            setUser(fetchedUser);
+            
+            // This ensures React sees a new object and triggers a re-render.
+            setUser({ ...fetchedUser }); 
             setToken(storedToken);
-            console.log("AuthProvider: User profile fetched and set:", fetchedUser);
+            
+            // Added for debugging, as you suggested.
+            console.log("AuthProvider: Updated user context:", fetchedUser); 
+
         } catch (e) {
             console.error("AuthProvider: Failed to fetch user profile.", e);
             setUser(null);
             setToken(null);
             localStorage.removeItem('authToken');
             setError(e instanceof Error ? e.message : "Session expired or invalid.");
-            // Redirect to login if the user is not already on a public page
             if (pathname !== '/login' && pathname !== '/signup') {
                 router.push('/login');
             }
         }
-    }, [router, pathname]); // Dependencies are stable
+    }, [router, pathname]);
 
-    // This useEffect now runs ONLY ONCE when the component first mounts.
-    // It checks for a token and validates it, setting the initial auth state.
     useEffect(() => {
         const initializeAuth = async () => {
             const storedToken = localStorage.getItem('authToken');
@@ -84,7 +84,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             setIsAuthReady(true);
         };
         initializeAuth();
-        // The empty dependency array [] ensures this runs only once.
     }, [fetchAndUpdateUser]);
 
     const login = useCallback(async (credentials: LoginFormData) => {
@@ -93,7 +92,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         try {
             const tokenResponse = await apiLoginUser(credentials);
             localStorage.setItem('authToken', tokenResponse.access_token);
-            await fetchAndUpdateUser(); // This will now set the user and token state
+            await fetchAndUpdateUser();
             
             const redirectPath = localStorage.getItem('redirectAfterLogin') || '/home';
             localStorage.removeItem('redirectAfterLogin');

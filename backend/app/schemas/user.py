@@ -5,7 +5,7 @@ from bson import ObjectId
 import re
 from datetime import datetime, timedelta
 
-# --- (Validators remain the same) ---
+# --- (Validators and other schemas remain the same) ---
 ALLOWED_EMAIL_DOMAINS = {"gmail.com", "yahoo.com", "outlook.com"}
 def validate_email_domain(email: EmailStr) -> EmailStr:
     if "@" not in email:
@@ -40,7 +40,6 @@ def validate_object_id(v: Any) -> ObjectId:
 
 PyObjectId = Annotated[ObjectId, BeforeValidator(validate_object_id)]
 
-# --- (Other schemas remain the same) ---
 class UserBase(BaseModel):
     firstname: Optional[str] = None
     lastname: Optional[str] = None
@@ -99,14 +98,14 @@ class UserInDBBase(UserBase):
     password_reset_expires: Optional[datetime] = None
     
     # --- Meta credentials ---
-    meta_ad_account_id: Optional[str] = None
-    meta_access_token: Optional[str] = None
+    meta_page_id: Optional[str] = None
+    meta_page_access_token: Optional[str] = None
 
-    # --- *** NEW: Google Ads Credentials *** ---
+    # --- Google Ads Credentials ---
     google_ad_account_id: Optional[str] = None
     google_access_token: Optional[str] = None
-    google_refresh_token: Optional[str] = None # Essential for maintaining long-term access
-    google_token_expiry: Optional[datetime] = None # To know when the access token expires
+    google_refresh_token: Optional[str] = None
+    google_token_expiry: Optional[datetime] = None
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -122,10 +121,9 @@ class UserPublic(UserBase):
     id: str
     is_admin: bool = False
     
-    # Expose the account IDs to the frontend, but NEVER the access tokens
-    meta_ad_account_id: Optional[str] = None
-    
-    # --- *** NEW: Expose Google Ad Account ID *** ---
+    # --- THIS IS THE FIX ---
+    # The field was named meta_ad_account_id but it should be meta_page_id
+    meta_page_id: Optional[str] = None
     google_ad_account_id: Optional[str] = None
 
     @classmethod
@@ -137,8 +135,9 @@ class UserPublic(UserBase):
             lastname=user_in_db.lastname,
             profile_picture_url=user_in_db.profile_picture_url,
             is_admin=user_in_db.is_admin,
-            meta_ad_account_id=user_in_db.meta_ad_account_id,
-            # --- *** NEW: Add Google Ad Account ID to the public user model *** ---
+            # --- THIS IS THE FIX ---
+            # The field was named meta_ad_account_id but it should be meta_page_id
+            meta_page_id=user_in_db.meta_page_id,
             google_ad_account_id=user_in_db.google_ad_account_id
         )
 
