@@ -1,4 +1,4 @@
-# D:\socialadify\backend\app\crud\user.py
+# D:/socialadify/backend/app/crud/user.py
 from motor.motor_asyncio import AsyncIOMotorDatabase, AsyncIOMotorCollection 
 from typing import Optional, Dict, Any
 from fastapi import HTTPException, status
@@ -251,4 +251,32 @@ async def set_user_google_ad_account(
     updated_user_doc = await db["users"].find_one({"_id": user_id})
     if updated_user_doc:
         return UserInDB(**updated_user_doc)
+    return None
+
+async def update_user_meta_details(
+    db: AsyncIOMotorDatabase, 
+    user_id: ObjectId, 
+    page_id: str, 
+    page_access_token: str
+) -> Optional[UserInDB]:
+    """
+    Updates a user's document with their selected Meta Page ID and access token.
+    """
+    users_collection: AsyncIOMotorCollection = db[USERS_COLLECTION]
+    
+    update_data = {
+        "meta_page_id": page_id,
+        "meta_page_access_token": page_access_token
+    }
+    
+    result = await users_collection.update_one(
+        {"_id": user_id},
+        {"$set": update_data}
+    )
+    
+    if result.matched_count > 0:
+        updated_user_doc = await users_collection.find_one({"_id": user_id})
+        if updated_user_doc:
+            return UserInDB(**updated_user_doc)
+    
     return None

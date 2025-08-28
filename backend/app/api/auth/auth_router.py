@@ -1,4 +1,4 @@
-# D:\socialadify\backend\app\api\auth\auth_router.py
+# D:/socialadify/backend/app/api/auth/auth_router.py
 from fastapi import APIRouter, Depends, HTTPException, status, Form, UploadFile, File
 from fastapi.security import OAuth2PasswordRequestForm
 from motor.motor_asyncio import AsyncIOMotorDatabase
@@ -8,7 +8,7 @@ import shutil
 from pathlib import Path
 import time
 import os
-
+from pydantic import BaseModel
 from app.schemas.user import UserCreate, UserPublic, Token, UserInDB, UserUpdate, PasswordResetRequest, PasswordResetConfirm # CORRECTED: Import PasswordResetRequest and PasswordResetConfirm
 from app.crud import user as user_service
 from app.core.security import create_access_token, get_current_active_user
@@ -144,8 +144,6 @@ async def upload_profile_picture(
     return UserPublic.from_user_in_db(updated_user_db)
 
 # --- *** NEW ENDPOINT to save Meta credentials *** ---
-
-
 @router.put("/users/me/meta-credentials", response_model=UserPublic)
 async def set_user_meta_credentials(
     credentials: MetaCredentialsPayload,
@@ -169,5 +167,33 @@ async def set_user_meta_credentials(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Could not update Meta credentials."
         )
+        
+    return UserPublic.from_user_in_db(updated_user)
+
+class MetaPageSaveRequest(BaseModel):
+    page_id: str
+    page_access_token: str
+
+    
+@router.post("/meta/save-page", response_model=UserPublic)
+async def save_meta_page(
+    request: MetaPageSaveRequest,
+    current_user: CurrentUserDependency,
+    db: DbDependency
+):
+    """
+    Saves the user's selected Facebook Page ID and a long-lived access token.
+    """
+    logger.info(f"User {current_user.email} saving Meta Page ID: {request.page_id}")
+    
+    updated_user = await user_service.update_user_meta_details(
+        db=db,
+        user_id=current_user.id,
+        page_id=request.page_id,
+        page_access_token=request.page_access_token
+    )
+    
+    if not updated_user:
+        raise HTTPException(status_code=404, detail="User not found during Meta page save.")
         
     return UserPublic.from_user_in_db(updated_user)

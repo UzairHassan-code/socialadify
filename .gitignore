@@ -3,6 +3,7 @@
 *.pyc
 __pycache__/
 *.log
+google-ads.yaml
 
 # Python Virtual Environment (backend)
 backend/venv/

@@ -1,5 +1,5 @@
 // D:\socialadify\frontend\src\services\schedulerService.ts
-import { UserPublic } from './authService'; // Assuming UserPublic is in authService
+import { UserPublic } from '../services/authService'; // Assuming UserPublic is in authService
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
 
@@ -66,7 +66,9 @@ export async function createScheduledPost(token: string, payload: SchedulePostPa
         formData.append('boost_duration_days', String(payload.boost_duration_days));
     }
 
-    const response = await fetch(`${API_BASE_URL}/schedule/`, {
+    // *** THIS IS THE FIX ***
+    // The endpoint was '/schedule/', but your router is likely '/scheduler/'
+    const response = await fetch(`${API_BASE_URL}/scheduler/`, {
         method: 'POST',
         headers: {
             'Authorization': `Bearer ${token}`,
@@ -84,7 +86,8 @@ export async function createScheduledPost(token: string, payload: SchedulePostPa
  * Fetches a list of scheduled posts for the user.
  */
 export async function fetchScheduledPosts(token: string, skip: number = 0, limit: number = 10): Promise<ScheduledPost[]> {
-    const response = await fetch(`${API_BASE_URL}/schedule/?skip=${skip}&limit=${limit}`, {
+    // *** THIS IS THE FIX ***
+    const response = await fetch(`${API_BASE_URL}/scheduler/?skip=${skip}&limit=${limit}`, {
         method: 'GET',
         headers: { 'Authorization': `Bearer ${token}` },
     });
@@ -98,7 +101,8 @@ export async function fetchScheduledPosts(token: string, skip: number = 0, limit
  * Deletes a scheduled post.
  */
 export async function deleteScheduledPost(token: string, postId: string): Promise<void> {
-    const response = await fetch(`${API_BASE_URL}/schedule/${postId}`, {
+    // *** THIS IS THE FIX ***
+    const response = await fetch(`${API_BASE_URL}/scheduler/${postId}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` },
     });

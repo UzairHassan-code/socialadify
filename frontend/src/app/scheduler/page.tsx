@@ -1,4 +1,4 @@
-// D:\socialadify\frontend\src\app\scheduler\page.tsx
+// D:/socialadify/frontend/src/app/scheduler/page.tsx
 'use client';
 
 import React, { useState, useEffect, useCallback, ChangeEvent, FormEvent } from 'react';
@@ -11,10 +11,10 @@ import {
     ScheduledPost,
     SchedulePostPayload,
 } from '../../services/schedulerService';
-import { HistoryItem } from '../../services/historyService'; // 1. Import HistoryItem
+import { HistoryItem } from '../../services/historyService'; // Import HistoryItem
 import Link from 'next/link';
 import EditScheduledPostModal from '../../components/EditScheduledPostModal';
-import ImportFromHistoryModal from '../../components/ImportFromHistoryModal'; // 2. Import the new modal
+import ImportFromHistoryModal from '../../components/ImportFromHistoryModal'; // Import the new modal
 
 // --- (DeletePostConfirmationModal and Icons remain the same) ---
 interface DeleteConfirmationModalProps {
@@ -52,7 +52,7 @@ const ImportIcon = ({ className = "w-4 h-4" }: { className?: string }) => ( <svg
 const API_BASE_URL_STATIC = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
 
 export default function SchedulerPage() {
-    const { token, logout, isAuthReady, isAuthenticated } = useAuth();
+    const { token } = useAuth();
 
     // --- Form State ---
     const [caption, setCaption] = useState('');
@@ -60,7 +60,6 @@ export default function SchedulerPage() {
     const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
     const [scheduledDateTime, setScheduledDateTime] = useState('');
     const [targetPlatform, setTargetPlatform] = useState('');
-    const [autoPost, setAutoPost] = useState(true);
     const [autoBoost, setAutoBoost] = useState(false);
     const [boostBudget, setBoostBudget] = useState('');
     const [boostDuration, setBoostDuration] = useState('');
@@ -76,11 +75,8 @@ export default function SchedulerPage() {
     const [currentEditingPost, setCurrentEditingPost] = useState<ScheduledPost | null>(null);
     const [isDeleteConfirmModalOpen, setIsDeleteConfirmModalOpen] = useState(false);
     const [postToDelete, setPostToDelete] = useState<ScheduledPost | null>(null);
-
-    // 3. NEW State for Import Modal
     const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
-    // --- (Data fetching and other handlers remain the same) ---
     const loadScheduledPosts = useCallback(async () => {
         if (!token) return;
         setIsFetchingPosts(true);
@@ -95,10 +91,10 @@ export default function SchedulerPage() {
      }, [token]);
 
     useEffect(() => { 
-        if(isAuthenticated) {
+        if(token) {
             loadScheduledPosts();
         }
-    }, [isAuthenticated, loadScheduledPosts]);
+    }, [token, loadScheduledPosts]);
 
     const handleImageChange = (event: ChangeEvent<HTMLInputElement>) => { 
         const file = event.target.files?.[0];
@@ -107,6 +103,7 @@ export default function SchedulerPage() {
             setImagePreviewUrl(URL.createObjectURL(file));
         }
     };
+
     const handleSchedulePost = async (event: FormEvent) => { 
         event.preventDefault();
         if (!token || !imageFile || !caption || !scheduledDateTime) {
@@ -119,7 +116,7 @@ export default function SchedulerPage() {
             scheduled_at_str: new Date(scheduledDateTime).toISOString(),
             image_file: imageFile,
             target_platform: targetPlatform || undefined,
-            auto_post: autoPost,
+            auto_post: true, // Assuming auto_post is always true now
             auto_boost: autoBoost,
             boost_budget: autoBoost ? parseFloat(boostBudget) : undefined,
             boost_duration_days: autoBoost ? parseInt(boostDuration, 10) : undefined,
@@ -144,6 +141,7 @@ export default function SchedulerPage() {
             setIsLoading(false);
         }
     };
+
     const confirmDeletePost = async () => { 
         if (!postToDelete || !token) return;
         setDeletingPostId(postToDelete.id);
@@ -157,37 +155,33 @@ export default function SchedulerPage() {
             setIsDeleteConfirmModalOpen(false);
         }
     };
+
     const handleOpenEditModal = (post: ScheduledPost) => { 
         setCurrentEditingPost(post);
         setIsEditModalOpen(true);
     };
+
     const handlePostUpdated = (updatedPost: ScheduledPost) => { 
         setScheduledPosts(prev => prev.map(p => p.id === updatedPost.id ? updatedPost : p));
     };
+
     const formatDate = (dateString: string) => { 
         return new Date(dateString).toLocaleString();
     };
 
-    // 4. NEW Handler for selecting an item from the history modal
     const handleSelectFromHistory = (item: HistoryItem) => {
         setCaption(item.caption);
-        // If it's a post with an image, we can't re-create the File object,
-        // but we can show the preview and inform the user.
         if (item.item_type === 'post' && item.image_url) {
             setImagePreviewUrl(`${API_BASE_URL_STATIC}${item.image_url}`);
             setImageFile(null); // Clear any manually uploaded file
-            alert("Image preview has been imported. Please re-upload the image file to schedule.");
+            alert("Visual has been imported. You must still re-upload the image file to schedule the post.");
         }
     };
 
-    // --- (Styling classes remain the same) ---
     const inputBaseClass = "w-full px-4 py-2.5 text-sm border border-slate-600 rounded-lg shadow-sm focus:ring-2 focus:ring-orange-400 outline-none transition bg-slate-700/50 text-slate-100";
     const labelBaseClass = "block text-sm font-medium text-slate-300 mb-1.5";
     const buttonPrimaryClass = "w-full flex items-center justify-center px-6 py-3 text-sm font-semibold rounded-lg shadow-md focus:outline-none focus:ring-2 focus:ring-indigo-500 transition disabled:opacity-60 bg-indigo-600 hover:bg-indigo-500 text-white";
     const cardBaseClass = "bg-slate-800/70 backdrop-blur-xl rounded-2xl shadow-2xl p-6 sm:p-8 border border-slate-700/80";
-
-    if (!isAuthReady) { return <div className="flex items-center justify-center min-h-screen"><LoadingSpinner/></div>; }
-    if (!isAuthenticated && isAuthReady) { return <div className="text-center py-10"><Link href="/login">Please log in</Link></div>; }
 
     return (
         <>
@@ -203,7 +197,12 @@ export default function SchedulerPage() {
                         <form onSubmit={handleSchedulePost} className="space-y-6">
                             {/* Image Upload */}
                             <div>
-                                <label htmlFor="imageUploadScheduler" className={labelBaseClass}>Upload Image*</label>
+                                <div className="flex justify-between items-center mb-1.5">
+                                    <label htmlFor="imageUploadScheduler" className={labelBaseClass}>Upload Image*</label>
+                                    <button type="button" onClick={() => setIsImportModalOpen(true)} className="text-xs text-orange-400 hover:text-orange-300 flex items-center gap-1">
+                                        <ImportIcon className="w-3.5 h-3.5"/> Import Visual
+                                    </button>
+                                </div>
                                 <label htmlFor="imageUploadScheduler" className="mt-1 flex flex-col items-center justify-center w-full h-48 px-6 pt-5 pb-6 border-2 border-slate-600 border-dashed rounded-xl group hover:border-orange-500 transition-colors bg-slate-700/30 cursor-pointer">
                                     {imagePreviewUrl ? ( <div className="relative w-full h-full max-h-40"><Image src={imagePreviewUrl} alt="Selected preview" fill style={{objectFit: "contain"}} className="rounded-md" sizes="30vw" /></div>)
                                     : ( <div className="space-y-1 text-center"><UploadIcon /><p className="text-xs text-slate-400">Click to upload</p><p className="text-xs text-slate-500">PNG, JPG up to 10MB</p></div> )}
@@ -215,19 +214,14 @@ export default function SchedulerPage() {
                             <div>
                                 <div className="flex justify-between items-center">
                                     <label htmlFor="caption" className={labelBaseClass}>Caption*</label>
-                                    {/* 5. NEW "Import from History" Button */}
-                                    <button 
-                                        type="button" 
-                                        onClick={() => setIsImportModalOpen(true)}
-                                        className="text-xs text-orange-400 hover:text-orange-300 flex items-center gap-1"
-                                    >
-                                        <ImportIcon className="w-3.5 h-3.5"/> Import from History
+                                    <button type="button" onClick={() => setIsImportModalOpen(true)} className="text-xs text-orange-400 hover:text-orange-300 flex items-center gap-1">
+                                        <ImportIcon className="w-3.5 h-3.5"/> Import Caption
                                     </button>
                                 </div>
                                 <textarea id="caption" value={caption} onChange={(e) => setCaption(e.target.value)} className={`${inputBaseClass} min-h-[100px]`} placeholder="Write your engaging caption here..." rows={4} required />
                             </div>
                             
-                            {/* Schedule Date & Time */}
+                            {/* ... (Rest of the form remains the same) ... */}
                             <div>
                                 <div className="flex justify-between items-center">
                                     <label htmlFor="scheduledDateTime" className={`${labelBaseClass} mb-0`}>Schedule Date & Time*</label>
@@ -237,8 +231,6 @@ export default function SchedulerPage() {
                                 </div>
                                 <input type="datetime-local" id="scheduledDateTime" value={scheduledDateTime} onChange={(e) => setScheduledDateTime(e.target.value)} className={inputBaseClass} required min={new Date().toISOString().slice(0, 16)} />
                             </div>
-
-                            {/* Automation and Boosting Section */}
                             <div className="space-y-4 pt-4 border-t border-slate-700/50">
                                 <div className="flex items-center justify-between">
                                     <label htmlFor="autoBoost" className="font-medium text-slate-200">Automatically Boost Post?</label>
@@ -247,7 +239,6 @@ export default function SchedulerPage() {
                                         <div className="w-11 h-6 bg-slate-600 rounded-full peer peer-focus:ring-2 peer-focus:ring-orange-400 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
                                     </label>
                                 </div>
-
                                 {autoBoost && (
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pl-4 border-l-2 border-indigo-500/50">
                                         <div>
@@ -261,8 +252,6 @@ export default function SchedulerPage() {
                                     </div>
                                 )}
                             </div>
-
-                            {/* Target Platform */}
                             <div>
                                 <label htmlFor="targetPlatform" className={labelBaseClass}>Target Platform </label>
                                 <select id="targetPlatform" value={targetPlatform} onChange={(e) => setTargetPlatform(e.target.value)} className={inputBaseClass}>
@@ -271,10 +260,8 @@ export default function SchedulerPage() {
                                     <option value="Facebook" className="bg-slate-700">Facebook</option>
                                 </select>
                             </div>
-                            
                             {error && <p className="text-sm text-red-400 text-center">{error}</p>}
                             {successMessage && <p className="text-sm text-green-400 text-center">{successMessage}</p>}
-                            
                             <div className="pt-2">
                                 <button type="submit" disabled={isLoading} className={buttonPrimaryClass}>
                                     {isLoading && <LoadingSpinner className="mr-2 h-5 w-5"/>}
@@ -284,10 +271,34 @@ export default function SchedulerPage() {
                         </form>
                     </section>
 
-                    {/* Scheduled Posts List Section */}
                     <section className={`${cardBaseClass} max-w-4xl mx-auto`}>
                         <h2 className="text-xl font-semibold text-slate-100 mb-6">Your Scheduled Posts</h2>
-                        {/* ... list rendering logic ... */}
+                        {isFetchingPosts ? (
+                            <div className="flex justify-center items-center py-10"><LoadingSpinner className="h-8 w-8 text-indigo-400" /></div>
+                        ) : scheduledPosts.length > 0 ? (
+                            <div className="space-y-4">
+                                {scheduledPosts.map(post => (
+                                    <div key={post.id} className="flex items-center bg-slate-900/50 p-4 rounded-lg border border-slate-700">
+                                        <div className="w-16 h-16 relative rounded-md overflow-hidden flex-shrink-0 mr-4">
+                                            <Image src={`${API_BASE_URL_STATIC}${post.image_url}`} alt="Scheduled post" fill className="object-cover" sizes="10vw" />
+                                        </div>
+                                        <div className="flex-grow">
+                                            <p className="text-sm text-slate-300 truncate">{post.caption}</p>
+                                            <p className="text-xs text-slate-400">Scheduled for: <span className="font-medium text-orange-300">{formatDate(post.scheduled_at)}</span></p>
+                                            <p className={`text-xs font-semibold ${post.status === 'completed' ? 'text-green-400' : 'text-cyan-400'}`}>Status: {post.status}</p>
+                                        </div>
+                                        <div className="flex items-center gap-2 ml-4">
+                                            <button onClick={() => handleOpenEditModal(post)} className="p-2 text-slate-400 hover:text-sky-400 rounded-md hover:bg-slate-700" title="Edit Post"><EditIcon /></button>
+                                            <button onClick={() => { setPostToDelete(post); setIsDeleteConfirmModalOpen(true); }} className="p-2 text-slate-400 hover:text-red-400 rounded-md hover:bg-slate-700" title="Delete Post" disabled={deletingPostId === post.id}>
+                                                {deletingPostId === post.id ? <LoadingSpinner className="h-4 w-4" /> : <DeleteIcon />}
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="text-center py-10"><p className="text-slate-400">You have no posts scheduled.</p></div>
+                        )}
                     </section>
                 </div>
             </div>
@@ -295,13 +306,7 @@ export default function SchedulerPage() {
             {/* Modals */}
             <EditScheduledPostModal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} post={currentEditingPost} onPostUpdated={handlePostUpdated} />
             <DeletePostConfirmationModal isOpen={isDeleteConfirmModalOpen} onClose={() => setIsDeleteConfirmModalOpen(false)} onConfirm={confirmDeletePost} post={postToDelete} />
-            
-            {/* 6. NEW: Render the ImportFromHistoryModal */}
-            <ImportFromHistoryModal 
-                isOpen={isImportModalOpen}
-                onClose={() => setIsImportModalOpen(false)}
-                onSelect={handleSelectFromHistory}
-            />
+            <ImportFromHistoryModal isOpen={isImportModalOpen} onClose={() => setIsImportModalOpen(false)} onSelect={handleSelectFromHistory} />
         </>
     );
 }

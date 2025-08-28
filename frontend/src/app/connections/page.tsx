@@ -1,4 +1,4 @@
-// D:\socialadify\frontend\src\app\connections\page.tsx
+// D:/socialadify/frontend/src/app/connections/page.tsx
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -24,7 +24,6 @@ export default function ConnectionsPage() {
     const [error, setError] = useState<string | null>(null);
     const [successMessage, setSuccessMessage] = useState<string | null>(null);
     
-    // --- SIMPLIFIED STATE ---
     const [adAccounts, setAdAccounts] = useState<GoogleAdAccount[]>([]);
     const [selectedAdAccount, setSelectedAdAccount] = useState<string>('');
     const [isFetchingAccounts, setIsFetchingAccounts] = useState(false);
@@ -38,7 +37,6 @@ export default function ConnectionsPage() {
         setError(null);
         try {
             const response = await getGoogleAdAccounts(token);
-            // We will now display all accounts returned by the API
             setAdAccounts(response.accounts || []);
         } catch (err) {
             setError(err instanceof Error ? err.message : "Could not fetch Google Ad accounts.");
@@ -118,7 +116,6 @@ export default function ConnectionsPage() {
                             {isGoogleConnected && ( <span className="flex items-center gap-1.5 text-xs font-medium text-green-400 bg-green-900/50 px-2 py-1 rounded-full"><CheckCircleIcon className="w-4 h-4" /> Connected</span> )}
                         </div>
                         
-                        {/* --- SIMPLIFIED SINGLE DROPDOWN UI --- */}
                         {adAccounts.length > 0 && !isGoogleConnected && (
                             <div className="space-y-4 mb-6">
                                 <p className="text-sm text-slate-300">Please select the Google Ads account you want to use with SocialAdify.</p>
