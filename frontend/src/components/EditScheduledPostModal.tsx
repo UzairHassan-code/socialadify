@@ -1,8 +1,8 @@
-// D:\socialadify\frontend\src\components\EditScheduledPostModal.tsx
+// D:/socialadify/frontend/src/components/EditScheduledPostModal.tsx
 'use client';
 
-import React, { useState, useEffect, FormEvent } from 'react'; // Removed ChangeEvent
-import { ScheduledPost, ScheduledPostPayload, updateScheduledPost } from '@/services/schedulerService';
+import React, { useState, useEffect, FormEvent } from 'react';
+import { ScheduledPost, UpdatePostPayload, updateScheduledPost } from '@/services/schedulerService';
 import { useAuth } from '@/context/AuthContext';
 
 // Icons
@@ -39,20 +39,20 @@ const EditScheduledPostModal: React.FC<EditScheduledPostModalProps> = ({
   useEffect(() => {
     if (post && isOpen) {
       setCaption(post.caption);
-      const localDateTime = new Date(post.scheduled_at);
-      const timezoneOffset = localDateTime.getTimezoneOffset() * 60000; 
-      const localISOTime = new Date(localDateTime.getTime() - timezoneOffset).toISOString().slice(0, 16);
-      setScheduledDateTime(localISOTime);
+      
+      const localDate = new Date(post.scheduled_at);
+      const year = localDate.getFullYear();
+      const month = String(localDate.getMonth() + 1).padStart(2, '0');
+      const day = String(localDate.getDate()).padStart(2, '0');
+      const hours = String(localDate.getHours()).padStart(2, '0');
+      const minutes = String(localDate.getMinutes()).padStart(2, '0');
+      
+      const formattedLocalDateTime = `${year}-${month}-${day}T${hours}:${minutes}`;
+      setScheduledDateTime(formattedLocalDateTime);
       
       setTargetPlatform(post.target_platform || '');
       setError(null);
       setSuccessMessage(null);
-    } else if (!isOpen) {
-        setCaption('');
-        setScheduledDateTime('');
-        setTargetPlatform('');
-        setError(null);
-        setSuccessMessage(null);
     }
   }, [post, isOpen]);
 
@@ -71,10 +71,15 @@ const EditScheduledPostModal: React.FC<EditScheduledPostModalProps> = ({
     setError(null);
     setSuccessMessage(null);
 
-    const payload: Partial<ScheduledPostPayload> = {
+    // --- THIS IS THE CORRECT FIX ---
+    // new Date() correctly interprets the input string as local time.
+    // .toISOString() correctly converts that local time to a UTC string.
+    const scheduled_at_str = new Date(scheduledDateTime).toISOString();
+
+    const payload: UpdatePostPayload = {
         caption,
-        scheduled_at_str: new Date(scheduledDateTime).toISOString(), 
-        target_platform: targetPlatform || null,
+        scheduled_at_str, // Use the corrected UTC string
+        target_platform: targetPlatform || undefined,
     };
 
     try {
@@ -138,9 +143,10 @@ const EditScheduledPostModal: React.FC<EditScheduledPostModalProps> = ({
           <div>
             <label htmlFor="editTargetPlatform" className={labelBaseClass}>Target Platform (Optional)</label>
             <select id="editTargetPlatform" value={targetPlatform} onChange={(e) => setTargetPlatform(e.target.value)} className={inputBaseClass}>
-                <option value="" className="bg-white dark:bg-slate-700">Select Platform (Future Feature)</option>
-                <option value="Instagram" className="bg-white dark:bg-slate-700">Instagram</option>
-                <option value="Facebook" className="bg-white dark:bg-slate-700">Facebook</option>
+              <option value="" className="bg-white dark:bg-slate-700">Select Platform (Future Feature)</option>
+              <option value="Instagram" className="bg-white dark:bg-slate-700">Instagram</option>
+              <option value="Facebook" className="bg-white dark:bg-slate-700">Facebook</option>
+              <option value="Google Ads" className="bg-white dark:bg-slate-700">Google Ads</option>
             </select>
             <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Platform-specific posting will be enabled later.</p>
           </div>

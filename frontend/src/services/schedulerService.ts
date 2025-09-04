@@ -1,9 +1,8 @@
-// D:\socialadify\frontend\src\services\schedulerService.ts
-import { UserPublic } from '../services/authService'; // Assuming UserPublic is in authService
+// D:/socialadify/frontend/src/services/schedulerService.ts
+import { UserPublic } from '../services/authService';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
 
-// This interface should match the public schema from your backend
 export interface ScheduledPost {
     id: string;
     user_id: string;
@@ -14,14 +13,25 @@ export interface ScheduledPost {
     created_at: string;
     updated_at: string;
     target_platform?: string | null;
-    // Add the new automation fields
     auto_post: boolean;
     auto_boost: boolean;
     boost_budget?: number | null;
     boost_duration_days?: number | null;
 }
 
-// --- Error Handling ---
+// --- NEW INTERFACES FOR AI SUGGESTION ---
+interface AISuggestionRequest {
+    caption: string;
+    target_platform: string;
+    is_boosted: boolean;
+}
+
+interface AISuggestionResponse {
+    suggested_time_utc: string;
+    reasoning?: string;
+}
+
+
 async function handleApiError(response: Response, defaultErrorMessage: string): Promise<never> {
     let processedErrorMessage = defaultErrorMessage;
     try {
@@ -33,7 +43,6 @@ async function handleApiError(response: Response, defaultErrorMessage: string): 
     throw new Error(processedErrorMessage);
 }
 
-// --- NEW: Interface for the post data payload ---
 export interface SchedulePostPayload {
     caption: string;
     scheduled_at_str: string;
@@ -45,9 +54,36 @@ export interface SchedulePostPayload {
     boost_duration_days?: number;
 }
 
+export interface UpdatePostPayload {
+    caption?: string;
+    scheduled_at_str?: string;
+    target_platform?: string | null;
+}
+
+
+// --- NEW FUNCTION TO GET AI SUGGESTION ---
+/**
+ * Fetches an AI-powered time suggestion from the backend.
+ */
+export async function getAISuggestion(token: string, payload: AISuggestionRequest): Promise<AISuggestionResponse> {
+    const response = await fetch(`${API_BASE_URL}/scheduler/suggestion`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+        return handleApiError(response, 'Failed to get AI suggestion.');
+    }
+    return response.json();
+}
+
+
 /**
  * Creates a new scheduled post.
- * Now sends all data as a single FormData object.
  */
 export async function createScheduledPost(token: string, payload: SchedulePostPayload): Promise<ScheduledPost> {
     const formData = new FormData();
@@ -66,8 +102,6 @@ export async function createScheduledPost(token: string, payload: SchedulePostPa
         formData.append('boost_duration_days', String(payload.boost_duration_days));
     }
 
-    // *** THIS IS THE FIX ***
-    // The endpoint was '/schedule/', but your router is likely '/scheduler/'
     const response = await fetch(`${API_BASE_URL}/scheduler/`, {
         method: 'POST',
         headers: {
@@ -86,7 +120,6 @@ export async function createScheduledPost(token: string, payload: SchedulePostPa
  * Fetches a list of scheduled posts for the user.
  */
 export async function fetchScheduledPosts(token: string, skip: number = 0, limit: number = 10): Promise<ScheduledPost[]> {
-    // *** THIS IS THE FIX ***
     const response = await fetch(`${API_BASE_URL}/scheduler/?skip=${skip}&limit=${limit}`, {
         method: 'GET',
         headers: { 'Authorization': `Bearer ${token}` },
@@ -101,7 +134,6 @@ export async function fetchScheduledPosts(token: string, skip: number = 0, limit
  * Deletes a scheduled post.
  */
 export async function deleteScheduledPost(token: string, postId: string): Promise<void> {
-    // *** THIS IS THE FIX ***
     const response = await fetch(`${API_BASE_URL}/scheduler/${postId}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` },
@@ -109,4 +141,23 @@ export async function deleteScheduledPost(token: string, postId: string): Promis
     if (!response.ok) {
         return handleApiError(response, 'Failed to delete post.');
     }
+}
+
+/**
+ * Updates an existing scheduled post.
+ */
+export async function updateScheduledPost(token: string, postId: string, payload: UpdatePostPayload): Promise<ScheduledPost> {
+    const response = await fetch(`${API_BASE_URL}/scheduler/${postId}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+        return handleApiError(response, 'Failed to update post.');
+    }
+    return response.json();
 }

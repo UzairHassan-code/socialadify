@@ -15,11 +15,12 @@ from bson import ObjectId
 from app.schemas.user import UserInDB, PyObjectId
 from app.core.security import get_current_active_user
 from app.db.session import get_database
+from app.services import gemini_service # Import the new Gemini service
 # --- THIS IS THE FIX ---
 # Removed the unused 'ErrorResponse' import
 from app.api.scheduling.schemas import ( 
     ScheduledPostCreate, ScheduledPostPublic, ScheduledPostUpdate,
-    ScheduledPostInDB 
+    ScheduledPostInDB,AISuggestionRequest, AISuggestionResponse,
 )
 from app.crud import scheduled_post as scheduler_crud
 
@@ -33,6 +34,38 @@ SCHEDULED_POST_IMAGES_DIR.mkdir(parents=True, exist_ok=True)
 
 DbDependency = Annotated[AsyncIOMotorDatabase, Depends(get_database)]
 CurrentUserDependency = Annotated[UserInDB, Depends(get_current_active_user)]
+
+# --- NEW AI SUGGESTION ENDPOINT ---
+@router.post(
+    "/suggestion",
+    response_model=AISuggestionResponse,
+    summary="Get AI-powered time suggestion for scheduling a post"
+)
+async def get_ai_time_suggestion(
+    request: AISuggestionRequest,
+    current_user: CurrentUserDependency
+):
+    logger.info(f"User {current_user.email} requesting AI time suggestion.")
+    try:
+        # This line calls the Gemini service and gets the data
+        suggestion_data = await gemini_service.get_optimal_post_time(
+            caption=request.caption,
+            platform=request.target_platform,
+            is_boosted=request.is_boosted
+        )
+        
+        # This line correctly uses the data within the same 'try' block
+        return AISuggestionResponse(
+            suggested_time_utc=suggestion_data['suggested_time_utc'],
+            reasoning=suggestion_data['reasoning']
+        )
+
+    except Exception as e:
+        logger.error(f"Error getting AI time suggestion for {current_user.email}: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to get a suggestion from the AI model. Please try again later."
+        )
 
 def _to_scheduled_post_public(post_db: ScheduledPostInDB) -> ScheduledPostPublic:
     """
@@ -144,6 +177,18 @@ async def list_user_scheduled_posts(
     logger.info(f"Fetching scheduled posts for user: {current_user.email}")
     user_object_id = ObjectId(str(current_user.id))
     posts_db = await scheduler_crud.get_scheduled_posts_by_user(db, user_id=user_object_id, skip=skip, limit=limit)
+
+    # --- START DEBUGGING LOGS ---
+    if posts_db:
+        # 1. Log the raw datetime object from the first post
+        first_post_datetime_obj = posts_db[0].scheduled_at
+        logger.info(f"DEBUG: Raw datetime object from DB: {first_post_datetime_obj}")
+
+        # 2. Log how Python converts this object to an ISO string
+        # This will tell us if the 'Z' is present before FastAPI/Pydantic serialization
+        logger.info(f"DEBUG: Python's .isoformat() output: {first_post_datetime_obj.isoformat()}")
+    # --- END DEBUGGING LOGS ---
+
     return [_to_scheduled_post_public(post) for post in posts_db]
 
 

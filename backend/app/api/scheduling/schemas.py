@@ -1,13 +1,24 @@
-# D:\socialadify\backend\app\api\scheduling\schemas.py
-from pydantic import BaseModel, Field
+# D:/socialadify/backend/app/api/scheduling/schemas.py
+from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional
-from datetime import datetime
-from app.schemas.user import PyObjectId # Assuming PyObjectId is accessible here
+from datetime import datetime, timezone
+from app.schemas.user import PyObjectId
+
+# --- NEW SCHEMAS FOR AI SUGGESTION ---
+class AISuggestionRequest(BaseModel):
+    caption: str = Field(..., min_length=1, description="The content of the post/ad.")
+    target_platform: str = Field(..., min_length=1, description="The platform (e.g., 'Facebook', 'Instagram').")
+    is_boosted: bool = Field(..., description="True if the post will be a boosted ad, False for organic.")
+
+class AISuggestionResponse(BaseModel):
+    suggested_time_utc: str = Field(..., description="The suggested optimal time in UTC ISO format.")
+    reasoning: Optional[str] = Field(None, description="The AI's reasoning for the suggestion.")
+    # We can add more fields later, like the reasoning from the AI
+    # reasoning: Optional[str] = None
 
 class ScheduledPostBase(BaseModel):
     caption: str
     target_platform: Optional[str] = None
-    # --- NEW FIELDS FOR AUTOMATION ---
     auto_post: bool = False
     auto_boost: bool = False
     boost_budget: Optional[float] = None
@@ -20,7 +31,6 @@ class ScheduledPostUpdate(BaseModel):
     caption: Optional[str] = None
     scheduled_at_str: Optional[str] = None
     target_platform: Optional[str] = None
-    # --- NEW FIELDS FOR UPDATING AUTOMATION ---
     auto_post: Optional[bool] = None
     auto_boost: Optional[bool] = None
     boost_budget: Optional[float] = None
@@ -35,13 +45,18 @@ class ScheduledPostInDB(ScheduledPostBase):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        populate_by_name = True
-        arbitrary_types_allowed = True
-        json_encoders = {
-            datetime: lambda dt: dt.isoformat(),
+    model_config = ConfigDict(
+        populate_by_name=True,
+        arbitrary_types_allowed=True,
+        json_encoders={
+            # --- THIS IS THE DEFINITIVE FIX ---
+            # This lambda function ensures that the datetime object is converted
+            # to an ISO format string that explicitly includes the UTC timezone
+            # indicator ('Z'), which JavaScript can parse correctly.
+            datetime: lambda dt: dt.isoformat().replace('+00:00', 'Z'),
             PyObjectId: str,
         }
+    )
 
 class ScheduledPostPublic(ScheduledPostInDB):
     id: str
