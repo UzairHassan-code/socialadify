@@ -1,4 +1,4 @@
-// D:\socialadify\frontend\src\app\post-generator\page.tsx
+// D:/socialadify/frontend/src/app/post-generator/page.tsx
 'use client';
 
 import React, { useState, FormEvent, useEffect } from 'react';
@@ -65,6 +65,9 @@ export default function PostGeneratorPage() {
     const [isSaving, setIsSaving] = useState(false);
     const [saveSuccess, setSaveSuccess] = useState(false);
     
+    // --- NEW STATE for used prompt ---
+    const [promptUsed, setPromptUsed] = useState<string | null>(null);
+    
     const [isClient, setIsClient] = useState(false);
     useEffect(() => {
         setIsClient(true);
@@ -99,6 +102,7 @@ export default function PostGeneratorPage() {
         setPageState('loading');
         setError(null);
         setResult(null);
+        setPromptUsed(null); // Reset prompt on new generation
         setSaveSuccess(false);
 
         const payload: PostGenerationPayload = {
@@ -109,6 +113,7 @@ export default function PostGeneratorPage() {
         try {
             const generatedResult = await generateVisualPost(token, payload);
             setResult(generatedResult);
+            setPromptUsed(generatedResult.prompt_used); // Save the used prompt
             setPageState('generated');
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : "An unknown error occurred.";
@@ -150,6 +155,7 @@ export default function PostGeneratorPage() {
 
     const handleCreateAnother = () => {
         setResult(null);
+        setPromptUsed(null);
         setSaveSuccess(false);
         setPageState('form');
     };
@@ -261,50 +267,43 @@ export default function PostGeneratorPage() {
 
                 {pageState === 'loading' && <GeneratingAnimation />}
 
-                {pageState === 'generated' && result && (
+                {(pageState === 'generated' || pageState === 'result') && result && (
                      <div className={`${cardClass} text-center`}>
-                        <h2 className="text-2xl font-bold text-slate-100 mb-4">AI Generated Image</h2>
-                        <div className="relative w-full aspect-square rounded-lg overflow-hidden border-2 border-slate-700 mb-4">
+                        <h2 className="text-2xl font-bold text-slate-100 mb-4">
+                            {pageState === 'result' ? 'Your Final Ad is Ready!' : 'AI Generated Image'}
+                        </h2>
+                        <div className="relative w-full aspect-square rounded-lg overflow-hidden border-2 border-slate-700 mb-6">
                             <Image src={result.image_data_url} alt="Generated AI ad" layout="fill" objectFit="contain" />
                         </div>
-                        {/* *** THIS IS THE CHANGE *** */}
-                        <div className="flex items-center justify-center gap-4">
-                            <button onClick={() => setPageState('editing')} className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-lg shadow-md transition-colors bg-indigo-600 hover:bg-indigo-500 text-white">
-                                <EditIcon className="w-4 h-4" /> Edit Image
-                            </button>
-                            <button onClick={handleSavePost} disabled={isSaving || saveSuccess} className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-lg shadow-md transition-colors bg-green-600 hover:bg-green-500 text-white disabled:opacity-70 disabled:cursor-not-allowed">
-                                {isSaving ? <LoadingSpinner className="w-4 h-4" /> : <SaveIcon />}
-                                {isSaving ? 'Saving...' : (saveSuccess ? 'Saved!' : 'Save Post')}
-                            </button>
-                            <button onClick={handleCreateCaption} className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-lg shadow-md transition-colors bg-teal-600 hover:bg-teal-500 text-white">
-                                <CaptionIcon /> Create Caption
-                            </button>
-                            <button onClick={handleCreateAnother} className="px-5 py-2.5 text-sm font-medium bg-slate-600 hover:bg-slate-500 rounded-lg">
-                                Create Another
-                            </button>
-                        </div>
-                        {saveSuccess && <p className="text-xs text-green-400 mt-2">Post saved to your library!</p>}
-                    </div>
-                )}
-
-                {isClient && pageState === 'editing' && result && (
-                    <ImageEditor 
-                        baseImage={result.image_data_url}
-                        onFinishEditing={handleFinishEditing}
-                        onClose={() => setPageState('generated')}
-                    />
-                )}
-
-                {pageState === 'result' && result && (
-                    <div className={`${cardClass} text-center`}>
-                        <h2 className="text-2xl font-bold text-slate-100 mb-4">Your Final Ad is Ready!</h2>
-                        <div className="relative w-full aspect-square rounded-lg overflow-hidden border-2 border-slate-700 mb-4">
-                            <Image src={result.image_data_url} alt="Generated AI ad" layout="fill" objectFit="contain" />
-                        </div>
-                        <div className="flex items-center justify-center gap-4">
-                            <a href={result.image_data_url} download="socialadify-ad.png" className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-lg shadow-md transition-colors bg-slate-600 hover:bg-slate-500 text-white">
-                                <DownloadIcon /> Download
-                            </a>
+                        
+                        {/* --- NEW: Prompt Display Section --- */}
+                        {promptUsed && (
+                            <div className="text-left mb-6">
+                                <label htmlFor="promptDisplay" className="block text-sm font-medium text-slate-300 mb-1.5">
+                                    AI Prompt Used
+                                </label>
+                                <textarea
+                                    id="promptDisplay"
+                                    readOnly
+                                    value={promptUsed}
+                                    className="w-full p-3 text-xs font-mono border border-slate-600 rounded-md bg-slate-900/50 text-slate-300 focus:ring-2 focus:ring-sky-500 outline-none resize-none"
+                                    rows={4}
+                                />
+                                <p className="text-xs text-slate-500 mt-1">You can copy this prompt to refine it or use it elsewhere.</p>
+                            </div>
+                        )}
+                        
+                        {/* Action Buttons */}
+                        <div className="flex flex-wrap items-center justify-center gap-4">
+                            {pageState === 'generated' ? (
+                                <button onClick={() => setPageState('editing')} className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-lg shadow-md transition-colors bg-indigo-600 hover:bg-indigo-500 text-white">
+                                    <EditIcon className="w-4 h-4" /> Edit Image
+                                </button>
+                            ) : (
+                                <a href={result.image_data_url} download="socialadify-ad.png" className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-lg shadow-md transition-colors bg-slate-600 hover:bg-slate-500 text-white">
+                                    <DownloadIcon /> Download
+                                </a>
+                            )}
                             <button onClick={handleSavePost} disabled={isSaving || saveSuccess} className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-lg shadow-md transition-colors bg-green-600 hover:bg-green-500 text-white disabled:opacity-70 disabled:cursor-not-allowed">
                                 {isSaving ? <LoadingSpinner className="w-4 h-4" /> : <SaveIcon />}
                                 {isSaving ? 'Saving...' : (saveSuccess ? 'Saved!' : 'Save Post')}
@@ -318,6 +317,15 @@ export default function PostGeneratorPage() {
                         </div>
                         {saveSuccess && <p className="text-xs text-green-400 mt-2">Post saved to your library!</p>}
                     </div>
+                )}
+
+
+                {isClient && pageState === 'editing' && result && (
+                    <ImageEditor 
+                        baseImage={result.image_data_url}
+                        onFinishEditing={handleFinishEditing}
+                        onClose={() => setPageState('generated')}
+                    />
                 )}
 
                 {error && (

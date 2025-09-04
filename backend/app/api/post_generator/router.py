@@ -1,4 +1,4 @@
-# D:\socialadify\backend\app\api\post_generator\router.py
+# D:/socialadify/backend/app/api/post_generator/router.py
 import os
 import httpx
 import google.generativeai as genai
@@ -31,7 +31,6 @@ SAVED_POSTS_DIR = _BACKEND_ROOT / "static" / "generated_posts"
 SAVED_POSTS_DIR.mkdir(parents=True, exist_ok=True)
 
 
-# --- This is now the LIVE Stability AI API call ---
 async def call_stability_api(prompt: str, aspect_ratio: str) -> bytes:
     """Calls the official Stability AI API to generate an image."""
     if not STABILITY_API_KEY:
@@ -73,21 +72,30 @@ async def generate_visual_post(
     if not GEMINI_API_KEY:
         raise HTTPException(status_code=503, detail="AI service is not configured.")
 
+    # --- THIS IS THE FINAL, HIGHLY-OPTIMIZED PROMPT ---
     gemini_prompt = f"""
-    You are an expert social media marketing copywriter and a creative art director.
-    Based on the user's answers, do two things:
-    1. Write the Ad Copy: Generate a compelling "headline".
-    2. Describe the Visuals: Create a concise, visually descriptive prompt for the Stable Diffusion 3 AI text-to-image model. This prompt should describe a background image that fits the product AND include the headline text you generated, so the image model can render it. The final image will have an aspect ratio of {request.aspect_ratio}, so make sure your description fits that shape.
+    You are an expert AI Prompt Engineer specializing in the Stable Diffusion 3 model. Your task is to generate an ad concept based on a user's brief.
 
-    User's Answers:
-    - Desired Ad Dimensions: {request.aspect_ratio}
-    - Product: {request.product_name}
-    - Audience: {request.target_audience}
-    - Features: {", ".join(request.key_features)}
-    - Tone: {request.tone}
+    **Objective:**
+    1.  **Write Ad Copy:** Create a short, punchy "headline" (max 5 words) and a "sub-headline" (max 10 words) that includes the Call to Action. This copy must be suitable for the target platform.
+    2.  **Engineer the Image Prompt:** Create a highly-effective, keyword-driven prompt for the SD3 image model. The prompt MUST render the headline and sub-headline you wrote directly onto the image.
 
-    Your Response Format:
-    Provide your response as a single, valid JSON object with two keys: "headline" and "image_prompt".
+    **User's Creative Brief:**
+    -   **Target Platform:** {request.platform}
+    -   **Product/Service:** {request.product_name}
+    -   **Target Audience:** {request.target_audience}
+    -   **Key Features:** {", ".join(request.key_features)}
+    -   **Tone:** {request.tone}
+    -   **Call to Action:** "{request.call_to_action}"
+    -   **Image Aspect Ratio:** {request.aspect_ratio}
+
+    **Image Prompt Engineering Rules:**
+    -   **Structure:** The prompt must be a series of comma-separated keywords and phrases. Start with the most important elements.
+    -   **Text First:** The very first part of the prompt must be the instruction to render the text. Use a format like: `The words "HEADLINE" and "SUB-HEADLINE" written in a bold, clean, white sans-serif font, elegantly placed.`
+    -   **Visuals:** After the text instruction, describe the main subject and the scene using strong, descriptive keywords (e.g., "photorealistic, cinematic lighting, a product shot of [Product], dynamic splash of water, sunset on a beach, hyper-detailed, 8k").
+    
+    **Final Output Format:**
+    Your response MUST be a single, valid JSON object with ONLY two keys: "ad_copy" (containing the full headline and sub-headline) and "image_prompt" (the final, engineered prompt for SD3).
     """
     
     try:
@@ -100,7 +108,6 @@ async def generate_visual_post(
         raise HTTPException(status_code=500, detail="Failed to generate ad copy.")
 
     image_prompt = ad_content.get("image_prompt", f"An ad for {request.product_name}")
-    # *** THIS IS THE CHANGE: We are now calling the live API again ***
     generated_image_bytes = await call_stability_api(image_prompt, request.aspect_ratio)
     
     try:
@@ -179,3 +186,4 @@ async def delete_visual_post(
         raise HTTPException(status_code=500, detail="Failed to delete post from the database.")
     
     return None
+
