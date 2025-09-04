@@ -280,3 +280,32 @@ async def update_user_meta_details(
             return UserInDB(**updated_user_doc)
     
     return None
+
+async def remove_user_meta_credentials(
+    db: AsyncIOMotorDatabase, 
+    user_id: ObjectId
+) -> Optional[UserInDB]:
+    """
+    Removes a user's Meta Page ID and Access Token from the database.
+    """
+    logger.info(f"Removing Meta credentials for user ID: {user_id}")
+    users_collection: AsyncIOMotorCollection = db[USERS_COLLECTION]
+    
+    update_data = {
+        "meta_page_id": None,
+        "meta_page_access_token": None
+    }
+    
+    result = await users_collection.update_one(
+        {"_id": user_id},
+        {"$set": update_data}
+    )
+    
+    if result.matched_count > 0:
+        logger.info(f"Successfully removed Meta credentials for user ID: {user_id}")
+        updated_user_data = await users_collection.find_one({"_id": user_id})
+        if updated_user_data:
+            return UserInDB(**updated_user_data)
+    
+    logger.warning(f"Failed to remove Meta credentials for user ID: {user_id}. User not found.")
+    return None

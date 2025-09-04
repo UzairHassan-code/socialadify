@@ -195,3 +195,17 @@ export async function saveMetaPageDetails(token: string, pageId: string, pageAcc
     }
     return response.json();
 }
+
+export async function disconnectMetaAccount(token: string): Promise<UserPublic> {
+    const response = await fetch(`${API_BASE_URL}/auth/users/me/meta-credentials`, {
+        method: 'DELETE',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+        },
+    });
+
+    if (!response.ok) {
+        return handleApiError(response, 'Failed to disconnect Meta account.');
+    }
+    return response.json();
+}

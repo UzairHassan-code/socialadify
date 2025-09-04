@@ -197,3 +197,26 @@ async def save_meta_page(
         raise HTTPException(status_code=404, detail="User not found during Meta page save.")
         
     return UserPublic.from_user_in_db(updated_user)
+
+@router.delete("/users/me/meta-credentials", response_model=UserPublic)
+async def disconnect_user_meta_account(
+    current_user: CurrentUserDependency,
+    db: DbDependency
+):
+    """
+    Allows an authenticated user to disconnect their Meta account by clearing credentials.
+    """
+    logger.info(f"User {current_user.email} is disconnecting their Meta account.")
+    
+    updated_user = await user_service.remove_user_meta_credentials(
+        db=db,
+        user_id=current_user.id
+    )
+    
+    if not updated_user:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Could not disconnect Meta account."
+        )
+        
+    return UserPublic.from_user_in_db(updated_user)

@@ -1,9 +1,8 @@
-// D:/socialadify/frontend/src/components/MetaIntegration.tsx
 'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { saveMetaPageDetails } from '../services/authService';
+import { saveMetaPageDetails, disconnectMetaAccount } from '../services/authService';
 
 declare global {
   interface Window {
@@ -29,6 +28,7 @@ export const MetaIntegration = () => {
     const [pages, setPages] = useState<FacebookPage[]>([]);
     const [selectedPage, setSelectedPage] = useState('');
     const [isSaving, setIsSaving] = useState(false);
+    const [isDisconnecting, setIsDisconnecting] = useState(false); // New state
     const [error, setError] = useState<string | null>(null);
     const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
@@ -103,6 +103,28 @@ export const MetaIntegration = () => {
         }
     };
 
+    // New handler for disconnecting
+    const handleDisconnect = async () => {
+        if (!token) {
+            setError("Authentication error.");
+            return;
+        }
+        setIsDisconnecting(true);
+        setError(null);
+        setSuccessMessage(null);
+        try {
+            await disconnectMetaAccount(token);
+            await fetchAndUpdateUser();
+            setPages([]);
+            setSelectedPage('');
+            setSuccessMessage("Meta account disconnected successfully.");
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Failed to disconnect account.");
+        } finally {
+            setIsDisconnecting(false);
+        }
+    };
+
     return (
         <div className="bg-slate-800/60 backdrop-blur-md shadow-xl rounded-2xl p-6 sm:p-8 border border-slate-700">
             <div className="flex items-center justify-between mb-4">
@@ -130,11 +152,25 @@ export const MetaIntegration = () => {
                 </button>
             )}
             
+            {/* --- THIS IS THE UPDATED BLOCK --- */}
             {isMetaConnected && (
-                 <button onClick={handleFacebookLogin} disabled={!sdkLoaded} className="w-full flex items-center justify-center px-5 py-2.5 text-sm font-semibold rounded-lg shadow-md bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-70">
-                    <FacebookIcon className="w-5 h-5 mr-2" />
-                    {sdkLoaded ? 'Reconnect with a different Page' : 'Loading SDK...'}
-                </button>
+                <div className="flex items-center gap-4">
+                    <button 
+                        onClick={handleFacebookLogin} 
+                        disabled={!sdkLoaded || isDisconnecting} 
+                        className="w-full flex items-center justify-center px-5 py-2.5 text-sm font-semibold rounded-lg shadow-md bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-70"
+                    >
+                        <FacebookIcon className="w-5 h-5 mr-2" />
+                        {sdkLoaded ? 'Change Page' : 'Loading...'}
+                    </button>
+                    <button 
+                        onClick={handleDisconnect} 
+                        disabled={isDisconnecting}
+                        className="px-5 py-2.5 text-sm font-medium text-slate-300 bg-slate-700 hover:bg-slate-600 rounded-lg disabled:opacity-70"
+                    >
+                        {isDisconnecting ? '...' : 'Disconnect'}
+                    </button>
+                </div>
             )}
             
             {error && <p className="text-sm text-red-400 mt-4">{error}</p>}
@@ -142,3 +178,4 @@ export const MetaIntegration = () => {
         </div>
     );
 };
+
