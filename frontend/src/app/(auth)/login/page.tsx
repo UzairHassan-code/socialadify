@@ -148,19 +148,19 @@ export default function LoginPage() {
                         </button>
                     </form>
 
-                    <div className="my-6 flex items-center">
+                    {/* <div className="my-6 flex items-center">
                         <div className="flex-grow border-t border-slate-300"></div>
                         <span className="mx-3 text-xs font-medium text-slate-500">OR</span>
                         <div className="flex-grow border-t border-slate-300"></div>
-                    </div>
+                    </div> */}
 
-                    <button
+                    {/* <button
                         type="button"
                         className="w-full flex items-center justify-center px-4 py-2.5 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1 transition shadow-sm disabled:opacity-70"
                         disabled={authIsLoading}
                     >
                         <GoogleIcon /> <span className="ml-2.5">Continue with Google</span>
-                    </button>
+                    </button> */}
                 </div>
             </div>
 

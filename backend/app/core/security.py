@@ -2,14 +2,17 @@
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Annotated
 import secrets # For generating secure tokens - KEPT FROM PARTNER'S CHANGES
+from .config import settings
+
+from app.core.config import settings
 
 from passlib.context import CryptContext
 from jose import JWTError, jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer # Ensure this is imported
 
-# Imports configuration variables
-from .config import SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES
+# # Imports configuration variables
+# from .config import SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES
 
 # For database dependency in get_current_active_user - KEPT THIS COMMENT
 from motor.motor_asyncio import AsyncIOMotorDatabase
@@ -37,13 +40,13 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     if expires_delta:
         expire = current_time_utc + expires_delta
     else:
-        expire = current_time_utc + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        expire = current_time_utc + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire, "iat": current_time_utc})
 
-    if not SECRET_KEY or not ALGORITHM:
+    if not settings.SECRET_KEY or not settings.ALGORITHM:
         raise ValueError("JWT settings (SECRET_KEY, ALGORITHM) are not configured.")
 
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
     return encoded_jwt
 
 # --- NEW/UPDATED FUNCTIONS FOR GETTING CURRENT USER ---
@@ -54,7 +57,7 @@ def decode_access_token(token: str) -> Optional[dict]:
     Returns the payload if valid, None otherwise.
     """
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         return payload
     except JWTError as e:
         # Log the error for debugging purposes - COMBINED COMMENTS

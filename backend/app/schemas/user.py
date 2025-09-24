@@ -2,8 +2,8 @@
 from pydantic import BaseModel, EmailStr, Field, ConfigDict, BeforeValidator, field_validator
 from typing import Optional, Annotated, Any
 from bson import ObjectId
-import re # Import the regular expression module
-from datetime import datetime, timedelta # NEW: Import datetime and timedelta
+import re  # Import the regular expression module
+from datetime import datetime, timedelta  # NEW: Import datetime and timedelta
 
 # --- Allowed Email Domains ---
 ALLOWED_EMAIL_DOMAINS = {"gmail.com", "yahoo.com", "outlook.com"}
@@ -15,7 +15,9 @@ def validate_email_domain(email: EmailStr) -> EmailStr:
     domain = email.split('@', 1)[1].lower()
     if domain not in ALLOWED_EMAIL_DOMAINS:
         allowed_domains_str = ", ".join(f"@{d}" for d in ALLOWED_EMAIL_DOMAINS)
-        raise ValueError(f"Email domain '@{domain}' is not allowed. Please use one of the following: {allowed_domains_str}.")
+        raise ValueError(
+            f"Email domain '@{domain}' is not allowed. Please use one of the following: {allowed_domains_str}."
+        )
     return email
 
 # --- Custom Password Validator ---
@@ -31,7 +33,6 @@ def validate_password_complexity(password: str) -> str:
     if not re.search(r"[!@#$%^&*()_+\-=\[\]{};':\"\\|,.<>\/?~`]", password):
         raise ValueError("Password must contain at least one special character (e.g., !@#$%^&*).")
     return password
-
 
 def validate_object_id(v: Any) -> ObjectId:
     if isinstance(v, ObjectId):
@@ -65,16 +66,14 @@ class UserCreate(UserBase):
     def check_password_complexity(cls, value: str) -> str:
         return validate_password_complexity(value)
 
-
 class UserUpdate(BaseModel):
     firstname: Optional[str] = Field(None, min_length=1)
     lastname: Optional[str] = Field(None, min_length=1)
     new_email: Optional[EmailStr] = Field(None, description="New email address for the user")
-    # Your changes for password update:
     password: Optional[str] = Field(None, min_length=8, description="New password for reset")
     password_reset_token: Optional[str] = Field(None, description="Temporary token for password reset")
     password_reset_expires: Optional[datetime] = Field(None, description="Expiration time for the password reset token")
-
+    profile_picture_url: Optional[str] = None
 
     @field_validator('new_email')
     @classmethod
@@ -83,7 +82,6 @@ class UserUpdate(BaseModel):
             return value
         return validate_email_domain(value)
 
-    # Your validator for new password during reset/update if provided
     @field_validator('password')
     @classmethod
     def check_new_password_complexity(cls, value: Optional[str]) -> Optional[str]:
@@ -91,8 +89,6 @@ class UserUpdate(BaseModel):
             return value
         return validate_password_complexity(value)
 
-# New schema for changing password when logged in (from partner's branch if they added it, or common)
-# Assuming this was from your partner's side as it was in your previous security.py log
 class ChangePasswordPayload(BaseModel):
     current_password: str
     new_password: str = Field(..., min_length=8)
@@ -102,12 +98,10 @@ class ChangePasswordPayload(BaseModel):
     def check_new_password_complexity_on_change(cls, value: str) -> str:
         return validate_password_complexity(value)
 
-
 class UserInDBBase(UserBase):
     email: EmailStr
     id: PyObjectId = Field(alias="_id")
-    is_admin: bool = False # Default to False
-    # Your changes for password reset token storage in DB
+    is_admin: bool = False
     password_reset_token: Optional[str] = None
     password_reset_expires: Optional[datetime] = None
 
@@ -123,7 +117,7 @@ class UserInDB(UserInDBBase):
 class UserPublic(UserBase):
     email: EmailStr
     id: str
-    is_admin: bool = False # Also include in public schema for display/frontend logic
+    is_admin: bool = False
 
     @classmethod
     def from_user_in_db(cls, user_in_db: UserInDB) -> "UserPublic":
@@ -143,7 +137,6 @@ class Token(BaseModel):
 class TokenData(BaseModel):
     email: Optional[str] = None
 
-# Your new schemas for password reset requests
 class PasswordResetRequest(BaseModel):
     email: EmailStr
 

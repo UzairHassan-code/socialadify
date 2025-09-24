@@ -1,4 +1,5 @@
 # D:\socialadify\backend\app\core\config.py
+
 import os
 from dotenv import load_dotenv
 from pathlib import Path
@@ -12,24 +13,35 @@ if ENV_PATH.exists():
 else:
     print(f"WARNING: .env file not found at {ENV_PATH}. Relying on system environment variables.")
 
-DATABASE_URL = os.getenv("DATABASE_URL")
-SECRET_KEY = os.getenv("SECRET_KEY", "your_default_fallback_secret_key_if_not_in_env_but_please_set_it")
-ALGORITHM = os.getenv("ALGORITHM", "HS256")
-ACCESS_TOKEN_EXPIRE_MINUTES_STR = os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60")
-try:
-    ACCESS_TOKEN_EXPIRE_MINUTES = int(ACCESS_TOKEN_EXPIRE_MINUTES_STR)
-except ValueError:
-    print(f"WARNING: Invalid ACCESS_TOKEN_EXPIRE_MINUTES value '{ACCESS_TOKEN_EXPIRE_MINUTES_STR}'. Using default 60.")
-    ACCESS_TOKEN_EXPIRE_MINUTES = 60
+# --- Define a class to hold all configuration settings ---
+class Settings:
+    DATABASE_URL = os.getenv("DATABASE_URL")
+    SECRET_KEY = os.getenv("SECRET_KEY", "your_default_fallback_secret_key_if_not_in_env_but_please_set_it")
+    ALGORITHM = os.getenv("ALGORITHM", "HS256")
+    
+    # Expiration minutes
+    ACCESS_TOKEN_EXPIRE_MINUTES_STR = os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60")
+    try:
+        ACCESS_TOKEN_EXPIRE_MINUTES = int(ACCESS_TOKEN_EXPIRE_MINUTES_STR)
+    except ValueError:
+        print(f"WARNING: Invalid ACCESS_TOKEN_EXPIRE_MINUTES value '{ACCESS_TOKEN_EXPIRE_MINUTES_STR}'. Using default 60.")
+        ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
-# FRONTEND_URL is defined here and loaded from .env or defaults
-FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000") 
+    FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
+
+    # Meta (Facebook/Instagram) settings
+    META_APP_ID = os.getenv("META_APP_ID", "")
+    META_APP_SECRET = os.getenv("META_APP_SECRET", "")
+    META_CALLBACK_URL = os.getenv("META_CALLBACK_URL", f"{FRONTEND_URL}/auth/meta/callback")
+
+# --- Create an instance of the Settings class ---
+settings = Settings()
 
 # --- Basic Checks & Warnings ---
-if not DATABASE_URL:
+if not settings.DATABASE_URL:
     print("⚠️ CRITICAL WARNING: DATABASE_URL not found in environment variables or .env file.")
-if SECRET_KEY == "your_default_fallback_secret_key_if_not_in_env_but_please_set_it":
+if settings.SECRET_KEY == "your_default_fallback_secret_key_if_not_in_env_but_please_set_it":
     print("⚠️ CRITICAL WARNING: SECRET_KEY is using a default fallback. Please set a strong, unique SECRET_KEY in your .env file.")
 
-print(f"Config loaded: DATABASE_URL (first 15 chars): {DATABASE_URL[:15] if DATABASE_URL else 'Not Set'}")
-print(f"Config loaded: Frontend URL for links: {FRONTEND_URL}") # Log to confirm it's loaded
+print(f"Config loaded: DATABASE_URL (first 15 chars): {settings.DATABASE_URL[:15] if settings.DATABASE_URL else 'Not Set'}")
+print(f"Config loaded: Frontend URL for links: {settings.FRONTEND_URL}")

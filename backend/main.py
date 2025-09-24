@@ -70,7 +70,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
+app.include_router(auth_router, prefix="/api/auth", tags=["Authentication"]) 
 app.include_router(auth_router, prefix="/auth", tags=["Authentication"])
 app.include_router(insights_router, prefix="/insights", tags=["Insights & Ad Analytics"])
 app.include_router(captions_router, prefix="/captions", tags=["AI Caption Generation"])

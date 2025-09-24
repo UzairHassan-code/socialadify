@@ -11,6 +11,13 @@ const nextConfig = {
         port: '8000', // Important: specify the port your backend is running on
         pathname: '/static/**', // Allows any path under /static/, good for profile_pics and scheduled_post_images
       },
+            {
+        protocol: 'https',
+        hostname: 'lh3.googleusercontent.com',
+        port: '', // Default port for https (443)
+        pathname: '/**', // Allow all paths under this hostname
+      },
+      
       {
         // This pattern is for the placeholder images we've used
         protocol: 'https',
