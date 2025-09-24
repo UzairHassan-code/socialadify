@@ -15,9 +15,12 @@ from bson import ObjectId
 from app.schemas.user import UserInDB, PyObjectId
 from app.core.security import get_current_active_user
 from app.db.session import get_database
+from app.services import gemini_service # Import the new Gemini service
+# --- THIS IS THE FIX ---
+# Removed the unused 'ErrorResponse' import
 from app.api.scheduling.schemas import ( 
-    ScheduledPostCreate, ScheduledPostPublic, ScheduledPostUpdate, ErrorResponse,
-    ScheduledPostInDB 
+    ScheduledPostCreate, ScheduledPostPublic, ScheduledPostUpdate,
+    ScheduledPostInDB,AISuggestionRequest, AISuggestionResponse,
 )
 from app.crud import scheduled_post as scheduler_crud
 
@@ -32,22 +35,57 @@ SCHEDULED_POST_IMAGES_DIR.mkdir(parents=True, exist_ok=True)
 DbDependency = Annotated[AsyncIOMotorDatabase, Depends(get_database)]
 CurrentUserDependency = Annotated[UserInDB, Depends(get_current_active_user)]
 
+# --- NEW AI SUGGESTION ENDPOINT ---
+@router.post(
+    "/suggestion",
+    response_model=AISuggestionResponse,
+    summary="Get AI-powered time suggestion for scheduling a post"
+)
+async def get_ai_time_suggestion(
+    request: AISuggestionRequest,
+    current_user: CurrentUserDependency
+):
+    logger.info(f"User {current_user.email} requesting AI time suggestion.")
+    try:
+        # This line calls the Gemini service and gets the data
+        suggestion_data = await gemini_service.get_optimal_post_time(
+            caption=request.caption,
+            platform=request.target_platform,
+            is_boosted=request.is_boosted
+        )
+        
+        # This line correctly uses the data within the same 'try' block
+        return AISuggestionResponse(
+            suggested_time_utc=suggestion_data['suggested_time_utc'],
+            reasoning=suggestion_data['reasoning']
+        )
+
+    except Exception as e:
+        logger.error(f"Error getting AI time suggestion for {current_user.email}: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to get a suggestion from the AI model. Please try again later."
+        )
+
 def _to_scheduled_post_public(post_db: ScheduledPostInDB) -> ScheduledPostPublic:
     """
     Helper function to convert ScheduledPostInDB instance to ScheduledPostPublic instance.
-    This ensures correct field names and type conversions (e.g., ObjectId to str).
     """
     return ScheduledPostPublic(
-        id=str(post_db.id),  # Pydantic resolves post_db.id to the value of _id field
+        id=str(post_db.id),
         user_id=str(post_db.user_id),
         caption=post_db.caption,
-        scheduled_at=post_db.scheduled_at, # Will be datetime, FastAPI handles JSON encoding
+        scheduled_at=post_db.scheduled_at,
         image_url=post_db.image_url,
         status=post_db.status,
-        created_at=post_db.created_at, # Will be datetime
-        updated_at=post_db.updated_at, # Will be datetime
-        target_platform=post_db.target_platform
-        # Add any other fields inherited by ScheduledPostPublic from ScheduledPostBase if necessary
+        created_at=post_db.created_at,
+        updated_at=post_db.updated_at,
+        target_platform=post_db.target_platform,
+        # Add the new automation fields to the public response
+        auto_post=post_db.auto_post,
+        auto_boost=post_db.auto_boost,
+        boost_budget=post_db.boost_budget,
+        boost_duration_days=post_db.boost_duration_days
     )
 
 
@@ -63,7 +101,11 @@ async def create_new_scheduled_post(
     caption: str = Form(..., min_length=1, max_length=2200),
     scheduled_at_str: str = Form(...), 
     image_file: UploadFile = File(...), 
-    target_platform: Optional[str] = Form(None)
+    target_platform: Optional[str] = Form(None),
+    auto_post: bool = Form(False),
+    auto_boost: bool = Form(False),
+    boost_budget: Optional[float] = Form(None),
+    boost_duration_days: Optional[int] = Form(None)
 ):
     logger.info(f"User {current_user.email} attempting to schedule a new post.")
 
@@ -94,12 +136,15 @@ async def create_new_scheduled_post(
     post_create_data = ScheduledPostCreate(
         caption=caption,
         scheduled_at_str=scheduled_at_str,
-        target_platform=target_platform
+        target_platform=target_platform,
+        auto_post=auto_post,
+        auto_boost=auto_boost,
+        boost_budget=boost_budget,
+        boost_duration_days=boost_duration_days
     )
 
     try:
-        user_object_id = current_user.id
-        if not isinstance(user_object_id, ObjectId): user_object_id = ObjectId(str(user_object_id))
+        user_object_id = ObjectId(str(current_user.id))
 
         scheduled_post_db = await scheduler_crud.create_scheduled_post(
             db=db, 
@@ -112,13 +157,13 @@ async def create_new_scheduled_post(
         logger.warning(f"Validation error creating scheduled post: {ve}")
         if file_path_on_disk.exists():
             try: os.remove(file_path_on_disk)
-            except Exception as e_del: logger.error(f"Error deleting orphaned scheduled post image {file_path_on_disk}: {e_del}")
+            except Exception as e_del: logger.error(f"Error deleting orphaned image {file_path_on_disk}: {e_del}")
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(ve))
     except Exception as e:
         logger.error(f"Failed to schedule post for user {current_user.email}: {e}", exc_info=True)
         if file_path_on_disk.exists():
             try: os.remove(file_path_on_disk)
-            except Exception as e_del: logger.error(f"Error deleting orphaned scheduled post image {file_path_on_disk}: {e_del}")
+            except Exception as e_del: logger.error(f"Error deleting orphaned image {file_path_on_disk}: {e_del}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Could not schedule post.")
 
 
@@ -130,10 +175,20 @@ async def list_user_scheduled_posts(
     limit: int = Query(10, ge=1, le=100)
 ):
     logger.info(f"Fetching scheduled posts for user: {current_user.email}")
-    user_object_id = current_user.id
-    if not isinstance(user_object_id, ObjectId): user_object_id = ObjectId(str(user_object_id))
-
+    user_object_id = ObjectId(str(current_user.id))
     posts_db = await scheduler_crud.get_scheduled_posts_by_user(db, user_id=user_object_id, skip=skip, limit=limit)
+
+    # --- START DEBUGGING LOGS ---
+    if posts_db:
+        # 1. Log the raw datetime object from the first post
+        first_post_datetime_obj = posts_db[0].scheduled_at
+        logger.info(f"DEBUG: Raw datetime object from DB: {first_post_datetime_obj}")
+
+        # 2. Log how Python converts this object to an ISO string
+        # This will tell us if the 'Z' is present before FastAPI/Pydantic serialization
+        logger.info(f"DEBUG: Python's .isoformat() output: {first_post_datetime_obj.isoformat()}")
+    # --- END DEBUGGING LOGS ---
+
     return [_to_scheduled_post_public(post) for post in posts_db]
 
 
@@ -146,8 +201,7 @@ async def get_specific_scheduled_post(
     logger.info(f"User {current_user.email} fetching scheduled post ID: {post_id}")
     try:
         post_object_id = PyObjectId(post_id)
-        user_object_id = current_user.id
-        if not isinstance(user_object_id, ObjectId): user_object_id = ObjectId(str(user_object_id))
+        user_object_id = ObjectId(str(current_user.id))
     except Exception: 
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid post ID format.")
 
@@ -167,8 +221,7 @@ async def update_existing_scheduled_post(
     logger.info(f"User {current_user.email} attempting to update scheduled post ID: {post_id}")
     try:
         post_object_id = PyObjectId(post_id)
-        user_object_id = current_user.id
-        if not isinstance(user_object_id, ObjectId): user_object_id = ObjectId(str(user_object_id))
+        user_object_id = ObjectId(str(current_user.id))
     except Exception:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid post ID format.")
 
@@ -198,8 +251,7 @@ async def delete_existing_scheduled_post(
     logger.info(f"User {current_user.email} attempting to delete scheduled post ID: {post_id}")
     try:
         post_object_id = PyObjectId(post_id)
-        user_object_id = current_user.id
-        if not isinstance(user_object_id, ObjectId): user_object_id = ObjectId(str(user_object_id))
+        user_object_id = ObjectId(str(current_user.id))
     except Exception:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid post ID format.")
 

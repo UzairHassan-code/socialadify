@@ -1,8 +1,8 @@
-// D:\socialadify\frontend\src\context\AuthContext.tsx
+// D:/socialadify/frontend/src/context/AuthContext.tsx
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import {
     loginUser as apiLoginUser,
     signupUser as apiSignupUser,
@@ -11,6 +11,8 @@ import {
     SignupData,
     UserPublic,
 } from '@/services/authService';
+    UserPublic,
+} from '../services/authService';
 
 interface AuthContextType {
     user: UserPublic | null;
@@ -23,10 +25,7 @@ interface AuthContextType {
     signup: (userData: SignupData) => Promise<UserPublic | undefined>;
     logout: () => void;
     clearError: () => void;
-    fetchAndUpdateUser: (tokenToUse?: string) => Promise<void>;
-    // HIGHLIGHTED CHANGE START
-    loginWithToken: (token: string) => Promise<void>; // New function for direct token login
-    // HIGHLIGHTED CHANGE END
+    fetchAndUpdateUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -42,115 +41,109 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const [isAuthReady, setIsAuthReady] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const router = useRouter();
+    const pathname = usePathname();
 
     const clearError = useCallback(() => { setError(null); }, []);
 
-    const fetchAndUpdateUser = useCallback(async (tokenToUse?: string) => {
-        const currentToken = tokenToUse || localStorage.getItem('authToken');
-        if (!currentToken) {
-            setUser(null); setToken(null); localStorage.removeItem('authToken');
-            setIsLoading(false);
+    // --- THIS FUNCTION IS UPDATED ---
+    const fetchAndUpdateUser = useCallback(async () => {
+        const storedToken = localStorage.getItem('authToken');
+        if (!storedToken) {
+            setUser(null);
+            setToken(null);
             return;
         }
-        console.log("AuthProvider: Attempting to fetch/update current user with token.");
-        setIsLoading(true);
+
+        console.log("AuthProvider: Fetching updated user profile...");
         try {
-            const fetchedUser = await apiGetUserProfile(currentToken);
-            setUser(fetchedUser);
-            setToken(currentToken);
-            if (!localStorage.getItem('authToken')) {
-                localStorage.setItem('authToken', currentToken);
-            }
-            console.log("AuthProvider: Current user details fetched/updated and set:", fetchedUser);
+            const fetchedUser = await apiGetUserProfile(storedToken);
+            
+            // This ensures React sees a new object and triggers a re-render.
+            setUser({ ...fetchedUser }); 
+            setToken(storedToken);
+            
+            // Added for debugging, as you suggested.
+            console.log("AuthProvider: Updated user context:", fetchedUser); 
+
         } catch (e) {
-            console.error("AuthProvider: Failed to fetch/update current user details.", e);
-            setUser(null); setToken(null); localStorage.removeItem('authToken');
-            localStorage.removeItem('redirectAfterLogin');
+            console.error("AuthProvider: Failed to fetch user profile.", e);
+            setUser(null);
+            setToken(null);
+            localStorage.removeItem('authToken');
             setError(e instanceof Error ? e.message : "Session expired or invalid.");
-            if (router && typeof window !== 'undefined' && window.location.pathname !== '/login') {
+            if (pathname !== '/login' && pathname !== '/signup') {
                 router.push('/login');
             }
         } finally {
             setIsLoading(false);
         }
-    }, [router]);
+    }, [router, pathname]);
 
     useEffect(() => {
-        const loadAuthData = async () => {
-            clearError();
+        const initializeAuth = async () => {
             const storedToken = localStorage.getItem('authToken');
             if (storedToken) {
-                await fetchAndUpdateUser(storedToken);
-            } else {
-                setUser(null);
-                setToken(null);
+                await fetchAndUpdateUser();
             }
             setIsAuthReady(true);
         };
-        loadAuthData();
-    }, [clearError, fetchAndUpdateUser]);
+        initializeAuth();
+    }, [fetchAndUpdateUser]);
 
     const login = useCallback(async (credentials: LoginFormData) => {
-        clearError(); setIsLoading(true);
+        clearError();
+        setIsLoading(true);
         try {
             const tokenResponse = await apiLoginUser(credentials);
-            await fetchAndUpdateUser(tokenResponse.access_token);
-            const pathFromStorage = localStorage.getItem('redirectAfterLogin');
-            const defaultRedirect = '/home';
-            const redirectPath = pathFromStorage || defaultRedirect;
-            if (pathFromStorage) localStorage.removeItem('redirectAfterLogin');
+            localStorage.setItem('authToken', tokenResponse.access_token);
+            await fetchAndUpdateUser();
+            
+            const redirectPath = localStorage.getItem('redirectAfterLogin') || '/home';
+            localStorage.removeItem('redirectAfterLogin');
             router.push(redirectPath);
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Login failed.');
             throw err;
-        } finally { setIsLoading(false); }
-    }, [router, clearError, fetchAndUpdateUser]);
-
-    const signup = useCallback(async (userData: SignupData): Promise<UserPublic | undefined> => {
-        clearError(); setIsLoading(true);
-        try {
-            const createdUser = await apiSignupUser(userData); return createdUser;
-        } catch (err) { setError(err instanceof Error ? err.message : 'Signup failed.'); throw err; }
-        finally { setIsLoading(false); }
-    }, [clearError]);
-
-    const logout = useCallback(() => {
-        clearError(); localStorage.removeItem('authToken'); localStorage.removeItem('redirectAfterLogin');
-        setToken(null); setUser(null); router.push('/login');
-    }, [router, clearError]);
-
-    // HIGHLIGHTED CHANGE START
-    const loginWithToken = useCallback(async (accessToken: string) => {
-        clearError();
-        setIsLoading(true);
-        try {
-            // Directly set the token and fetch user data without going through loginUser
-            localStorage.setItem('authToken', accessToken);
-            await fetchAndUpdateUser(accessToken);
-            // Redirection will be handled by the useEffect watching isAuthenticated
-            console.log("AuthContext: User logged in directly with token (e.g., Google).");
-        } catch (err) {
-            console.error("AuthContext: Failed to log in with external token.", err);
-            setError(err instanceof Error ? err.message : 'Authentication failed.');
-            setUser(null);
-            setToken(null);
-            localStorage.removeItem('authToken');
-            localStorage.removeItem('redirectAfterLogin');
-            // Do not re-throw here, as the component handling Google login might not expect it
         } finally {
             setIsLoading(false);
         }
-    }, [clearError, fetchAndUpdateUser]);
-    // HIGHLIGHTED CHANGE END
+    }, [router, clearError, fetchAndUpdateUser]);
 
-    const isAuthenticated = !!token && !!user;
+    const signup = useCallback(async (userData: SignupData): Promise<UserPublic | undefined> => {
+        clearError();
+        setIsLoading(true);
+        try {
+            const createdUser = await apiSignupUser(userData);
+            return createdUser;
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Signup failed.');
+            throw err;
+        } finally {
+            setIsLoading(false);
+        }
+    }, [clearError]);
+
+    const logout = useCallback(() => {
+        clearError();
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('redirectAfterLogin');
+        setToken(null);
+        setUser(null);
+        router.push('/login');
+    }, [router, clearError]);
 
     const contextValue: AuthContextType = {
-        user, token, isAuthenticated, isLoading, isAuthReady, error,
-        login, signup, logout, clearError, fetchAndUpdateUser,
-        // HIGHLIGHTED CHANGE START
-        loginWithToken // Expose the new function
-        // HIGHLIGHTED CHANGE END
+        user,
+        token,
+        isAuthenticated: !!token && !!user,
+        isLoading,
+        isAuthReady,
+        error,
+        login,
+        signup,
+        logout,
+        clearError,
+        fetchAndUpdateUser
     };
 
     return <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>;
@@ -158,6 +151,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
 export const useAuth = (): AuthContextType => {
     const context = useContext(AuthContext);
-    if (context === undefined) { throw new Error('useAuth must be used within an AuthProvider'); }
+    if (context === undefined) {
+        throw new Error('useAuth must be used within an AuthProvider');
+    }
     return context;
 };

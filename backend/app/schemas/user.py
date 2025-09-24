@@ -1,14 +1,11 @@
-# D:\socialadify\backend\app\schemas\user.py
 from pydantic import BaseModel, EmailStr, Field, ConfigDict, BeforeValidator, field_validator
 from typing import Optional, Annotated, Any
 from bson import ObjectId
-import re  # Import the regular expression module
-from datetime import datetime, timedelta  # NEW: Import datetime and timedelta
+import re
+from datetime import datetime, timedelta
 
-# --- Allowed Email Domains ---
+# --- (Validators and other schemas remain the same) ---
 ALLOWED_EMAIL_DOMAINS = {"gmail.com", "yahoo.com", "outlook.com"}
-
-# --- Custom Email Domain Validator ---
 def validate_email_domain(email: EmailStr) -> EmailStr:
     if "@" not in email:
         raise ValueError("Invalid email format: missing '@' symbol.")
@@ -20,7 +17,6 @@ def validate_email_domain(email: EmailStr) -> EmailStr:
         )
     return email
 
-# --- Custom Password Validator ---
 def validate_password_complexity(password: str) -> str:
     if len(password) < 8:
         raise ValueError("Password must be at least 8 characters long.")
@@ -55,12 +51,10 @@ class UserCreate(UserBase):
     password: str = Field(..., min_length=8)
     firstname: str = Field(..., min_length=1)
     lastname: str = Field(..., min_length=1)
-
     @field_validator('email')
     @classmethod
     def check_email_domain_on_create(cls, value: EmailStr) -> EmailStr:
         return validate_email_domain(value)
-
     @field_validator('password')
     @classmethod
     def check_password_complexity(cls, value: str) -> str:
@@ -78,25 +72,26 @@ class UserUpdate(BaseModel):
     @field_validator('new_email')
     @classmethod
     def check_new_email_domain_on_update(cls, value: Optional[EmailStr]) -> Optional[EmailStr]:
-        if value is None:
-            return value
+        if value is None: return value
         return validate_email_domain(value)
 
     @field_validator('password')
     @classmethod
     def check_new_password_complexity(cls, value: Optional[str]) -> Optional[str]:
-        if value is None:
-            return value
+        if value is None: return value
         return validate_password_complexity(value)
 
 class ChangePasswordPayload(BaseModel):
     current_password: str
     new_password: str = Field(..., min_length=8)
-
     @field_validator('new_password')
     @classmethod
     def check_new_password_complexity_on_change(cls, value: str) -> str:
         return validate_password_complexity(value)
+
+class MetaCredentialsPayload(BaseModel):
+    meta_ad_account_id: str = Field(..., min_length=1)
+    meta_access_token: str = Field(..., min_length=1)
 
 class UserInDBBase(UserBase):
     email: EmailStr
@@ -104,6 +99,16 @@ class UserInDBBase(UserBase):
     is_admin: bool = False
     password_reset_token: Optional[str] = None
     password_reset_expires: Optional[datetime] = None
+    
+    # --- Meta credentials ---
+    meta_page_id: Optional[str] = None
+    meta_page_access_token: Optional[str] = None
+
+    # --- Google Ads Credentials ---
+    google_ad_account_id: Optional[str] = None
+    google_access_token: Optional[str] = None
+    google_refresh_token: Optional[str] = None
+    google_token_expiry: Optional[datetime] = None
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -118,6 +123,8 @@ class UserPublic(UserBase):
     email: EmailStr
     id: str
     is_admin: bool = False
+    meta_page_id: Optional[str] = None
+    google_ad_account_id: Optional[str] = None
 
     @classmethod
     def from_user_in_db(cls, user_in_db: UserInDB) -> "UserPublic":
@@ -127,7 +134,9 @@ class UserPublic(UserBase):
             firstname=user_in_db.firstname,
             lastname=user_in_db.lastname,
             profile_picture_url=user_in_db.profile_picture_url,
-            is_admin=user_in_db.is_admin
+            is_admin=user_in_db.is_admin,
+            meta_page_id=user_in_db.meta_page_id,
+            google_ad_account_id=user_in_db.google_ad_account_id
         )
 
 class Token(BaseModel):
@@ -143,7 +152,6 @@ class PasswordResetRequest(BaseModel):
 class PasswordResetConfirm(BaseModel):
     token: str
     new_password: str = Field(..., min_length=8)
-
     @field_validator('new_password')
     @classmethod
     def check_new_password_complexity(cls, value: str) -> str:

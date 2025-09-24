@@ -1,8 +1,9 @@
-/* eslint-disable no-console */
 // D:\socialadify\frontend\src\services\authService.ts
+/* eslint-disable no-console */
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
 
+// --- Interfaces ---
 export interface SignupData {
     email: string;
     password: string;
@@ -26,6 +27,10 @@ export interface UserPublic {
     lastname: string;
     email: string;
     profile_picture_url?: string | null;
+    is_admin: boolean;
+    meta_ad_account_id?: string | null;
+    google_ad_account_id?: string | null;
+    meta_page_id?: string | null; 
 }
 
 export interface UserProfileUpdateData {
@@ -48,190 +53,159 @@ export interface ChangePasswordData {
     new_password: string;
 }
 
-// --- New Interface for Delete Account ---
 export interface DeleteAccountData {
-    password: string; // Current password to confirm deletion
+    password: string;
 }
-// --- End New Interface ---
 
+export interface MetaCredentialsPayload {
+    meta_ad_account_id: string;
+    meta_access_token: string;
+}
 
 // --- Error Handling ---
 async function handleApiError(response: Response, defaultErrorMessage: string): Promise<never> {
     let processedErrorMessage = defaultErrorMessage;
-    console.error(`AUTH_SERVICE_HANDLE_ERROR: Status: ${response.status}, Content-Type: ${response.headers.get('Content-Type')}`);
     try {
-        const responseText = await response.text();
-        console.error("AUTH_SERVICE_HANDLE_ERROR: Response Text:", responseText);
-        try {
-            const errorData = JSON.parse(responseText);
-            console.error("AUTH_SERVICE_HANDLE_ERROR: Parsed JSON errorData:", errorData);
-            // MODIFIED: Streamlined error message extraction
-            if (errorData && typeof errorData.detail === 'string') {
-                processedErrorMessage = errorData.detail;
-            } else if (Array.isArray(errorData.detail) && errorData.detail.length > 0) {
-                // For Pydantic validation errors, FastAPI often returns an array of objects with 'msg'
-                const firstError = errorData.detail[0];
-                if (typeof firstError === 'object' && firstError !== null && 'msg' in firstError) {
-                    processedErrorMessage = (firstError as { msg: string }).msg;
-                } else {
-                    processedErrorMessage = `Validation errors: ${JSON.stringify(errorData.detail)}`;
-                }
-            } else if (responseText) {
-                processedErrorMessage = responseText;
-            }
-        } catch (jsonParseError) {
-            console.error("AUTH_SERVICE_HANDLE_ERROR: Failed to parse response as JSON.", jsonParseError);
-            if (responseText) {
-                processedErrorMessage = responseText;
-            }
+        const errorData = await response.json();
+        if (errorData && errorData.detail) {
+            processedErrorMessage = errorData.detail;
         }
-    } catch (e) {
-        console.error("AUTH_SERVICE_HANDLE_ERROR: Error reading response body.", e);
-    }
-    console.error("AUTH_SERVICE_THROWING_ERROR_MESSAGE:", processedErrorMessage);
+    } catch (e) { /* Ignore if the response is not JSON */ }
     throw new Error(processedErrorMessage);
 }
 
+// --- API Functions ---
 
 export async function signupUser(userData: SignupData): Promise<UserPublic> {
-    console.log("Attempting signup with data:", userData);
     const response = await fetch(`${API_BASE_URL}/auth/signup`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(userData),
     });
-    if (!response.ok) { return handleApiError(response, 'Signup failed. Please check your details.'); }
+    if (!response.ok) return handleApiError(response, 'Signup failed.');
     return response.json();
 }
 
 export async function loginUser(credentials: LoginFormData): Promise<TokenResponse> {
-    console.log("Attempting login with credentials:", credentials.email);
     const formData = new URLSearchParams();
     formData.append('username', credentials.email);
     formData.append('password', credentials.password);
     const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded', },
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: formData.toString(),
     });
-    if (!response.ok) { return handleApiError(response, 'Login failed. Please check your credentials.'); }
+    if (!response.ok) return handleApiError(response, 'Login failed.');
     return response.json();
 }
 
 export async function getUserProfile(token: string): Promise<UserPublic> {
-    console.log("authService: Attempting to fetch user profile.");
     const response = await fetch(`${API_BASE_URL}/auth/users/me`, {
         method: 'GET',
-        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', },
+        headers: { 'Authorization': `Bearer ${token}` },
     });
-    if (!response.ok) {
-        console.error(`authService: getUserProfile failed with status ${response.status}`);
-        return handleApiError(response, 'Failed to fetch user profile. Session might be invalid.');
-    }
-    const data: UserPublic = await response.json();
-    console.log("authService: User profile fetched successfully:", data);
-    return data;
+    if (!response.ok) return handleApiError(response, 'Failed to fetch user profile.');
+    return response.json();
+}
+
+export async function getGoogleAuthUrl(token: string): Promise<{ authorization_url: string }> {
+    const response = await fetch(`${API_BASE_URL}/auth/google/auth-url`, {
+        method: 'GET',
+        headers: { 'Authorization': `Bearer ${token}` },
+    });
+    if (!response.ok) return handleApiError(response, 'Failed to get Google auth URL.');
+    return response.json();
 }
 
 export async function apiUpdateUserProfileText(token: string, profileData: UserProfileUpdateData): Promise<UserPublic> {
-    console.log("authService: Attempting to update user profile text/email with data:", profileData);
     const formData = new URLSearchParams();
-    if (profileData.firstname !== undefined) formData.append('firstname', profileData.firstname);
-    if (profileData.lastname !== undefined) formData.append('lastname', profileData.lastname);
-    if (profileData.new_email !== undefined) formData.append('new_email', profileData.new_email);
+    if (profileData.firstname) formData.append('firstname', profileData.firstname);
+    if (profileData.lastname) formData.append('lastname', profileData.lastname);
+    if (profileData.new_email) formData.append('new_email', profileData.new_email);
     const response = await fetch(`${API_BASE_URL}/auth/users/me/profile`, {
         method: 'PUT',
-        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/x-www-form-urlencoded', },
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/x-www-form-urlencoded' },
         body: formData.toString(),
     });
-    if (!response.ok) {
-        console.error(`authService: apiUpdateUserProfileText failed with status ${response.status}`);
-        return handleApiError(response, 'Failed to update profile information.');
-    }
-    const data: UserPublic = await response.json();
-    console.log("authService: User profile information updated successfully:", data);
-    return data;
+    if (!response.ok) return handleApiError(response, 'Failed to update profile.');
+    return response.json();
 }
 
 export async function apiUploadProfilePicture(token: string, imageFile: File): Promise<UserPublic> {
-    console.log("authService: Attempting to upload profile picture.");
     const formData = new FormData();
     formData.append('profile_picture', imageFile);
     const response = await fetch(`${API_BASE_URL}/auth/users/me/profile-picture`, {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` }, body: formData,
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formData,
     });
-    if (!response.ok) {
-        console.error(`authService: apiUploadProfilePicture failed with status ${response.status}`);
-        return handleApiError(response, 'Failed to upload profile picture.');
-    }
-    const data: UserPublic = await response.json();
-    console.log("authService: Profile picture uploaded successfully:", data);
-    return data;
-}
-
-export async function requestPasswordReset(payload: RequestPasswordResetPayloadFE): Promise<{ message: string }> {
-    console.log("authService: Requesting password reset for email:", payload.email);
-    const response = await fetch(`${API_BASE_URL}/auth/request-password-reset`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-    });
-    if (!response.ok) {
-        return handleApiError(response, 'Password reset request failed.');
-    }
-    return response.json();
-}
-
-export async function resetPassword(payload: ResetPasswordPayloadFE): Promise<{ message: string }> {
-    console.log("authService: Attempting to reset password.");
-    const response = await fetch(`${API_BASE_URL}/auth/reset-password`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-    });
-    if (!response.ok) {
-        return handleApiError(response, 'Password reset failed. The token might be invalid or expired.');
-    }
+    if (!response.ok) return handleApiError(response, 'Failed to upload picture.');
     return response.json();
 }
 
 export async function apiChangePassword(token: string, payload: ChangePasswordData): Promise<{ message: string }> {
-    console.log("authService: Attempting to change password.");
     const response = await fetch(`${API_BASE_URL}/auth/users/me/change-password`, {
         method: 'POST',
-        headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-        },
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
     });
+    if (!response.ok) return handleApiError(response, 'Failed to change password.');
+    return response.json();
+}
+
+export async function apiDeleteAccount(token: string, payload: DeleteAccountData): Promise<{ message: string }> {
+    const response = await fetch(`${API_BASE_URL}/auth/users/me/delete-account`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+    });
+    if (!response.ok) return handleApiError(response, 'Failed to delete account.');
+    return response.json();
+}
+
+export async function apiSaveMetaCredentials(token: string, payload: MetaCredentialsPayload): Promise<UserPublic> {
+    const response = await fetch(`${API_BASE_URL}/auth/users/me/meta-credentials`, {
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+    });
+    if (!response.ok) return handleApiError(response, 'Failed to save Meta credentials.');
+    return response.json();
+}
+export async function saveMetaPageDetails(token: string, pageId: string, pageAccessToken: string): Promise<any> {
+    // This assumes your backend has an endpoint at /auth/meta/save-page
+    // We will need to create this endpoint in the backend later.
+    const response = await fetch(`${API_BASE_URL}/auth/meta/save-page`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+            page_id: pageId,
+            page_access_token: pageAccessToken,
+        }),
+    });
+
     if (!response.ok) {
-        if (response.status === 401) {
-            throw new Error("Unauthorized: Your session may have expired. Please log in again.");
-        }
-        return handleApiError(response, 'Failed to change password. Please check your current password.');
+        // You should have a handleApiError function here, assuming it's defined elsewhere in the file
+        // For now, throwing a generic error.
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Failed to save Meta page details.');
     }
     return response.json();
 }
 
-// --- NEW FUNCTION FOR DELETING ACCOUNT ---
-export async function apiDeleteAccount(token: string, payload: DeleteAccountData): Promise<{ message: string }> {
-    console.log("authService: Attempting to delete account.");
-    const response = await fetch(`${API_BASE_URL}/auth/users/me/delete-account`, {
-        method: 'POST', // Changed to POST to send a body, backend uses POST for this too
+export async function disconnectMetaAccount(token: string): Promise<UserPublic> {
+    const response = await fetch(`${API_BASE_URL}/auth/users/me/meta-credentials`, {
+        method: 'DELETE',
         headers: {
             'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
         },
-        body: JSON.stringify(payload),
     });
 
     if (!response.ok) {
-        if (response.status === 401) {
-            throw new Error("Unauthorized: Your session may have expired. Please log in again.");
-        }
-        return handleApiError(response, 'Failed to delete account. Please check your password.');
+        return handleApiError(response, 'Failed to disconnect Meta account.');
     }
-    return response.json(); // Expects { "message": "..." }
+    return response.json();
 }

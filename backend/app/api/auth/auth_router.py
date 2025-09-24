@@ -1,4 +1,4 @@
-# D:\socialadify\backend\app\api\auth\auth_router.py
+# D:/socialadify/backend/app/api/auth/auth_router.py
 from fastapi import APIRouter, Depends, HTTPException, status, Form, UploadFile, File
 from fastapi.security import OAuth2PasswordRequestForm
 from motor.motor_asyncio import AsyncIOMotorDatabase
@@ -8,6 +8,8 @@ import shutil
 from pathlib import Path
 import time
 import os
+from pydantic import BaseModel
+from app.schemas.user import UserCreate, UserPublic, Token, UserInDB, UserUpdate, PasswordResetRequest, PasswordResetConfirm # CORRECTED: Import PasswordResetRequest and PasswordResetConfirm
 import secrets
 from google.oauth2 import id_token
 from google.auth.transport import requests
@@ -32,6 +34,7 @@ from app.schemas.user import UserCreate, UserPublic, Token, UserInDB, UserUpdate
 from app.crud import user as user_service
 from app.core.security import create_access_token, get_current_active_user
 from app.db.session import get_database
+from app.schemas.user import MetaCredentialsPayload # Import the new schema
 
 _BACKEND_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 PROFILE_PICS_DIR = _BACKEND_ROOT / "static" / "profile_pics"
@@ -594,3 +597,81 @@ async def google_signup_login(google_token: GoogleToken, db: DbDependency):
 
 # # ⚠️ Do not include this here unless you actually have `sso_router` defined.
 # # router.include_router(sso_router, prefix="/sso", tags=["sso"])
+
+# --- *** NEW ENDPOINT to save Meta credentials *** ---
+@router.put("/users/me/meta-credentials", response_model=UserPublic)
+async def set_user_meta_credentials(
+    credentials: MetaCredentialsPayload,
+    current_user: CurrentUserDependency,
+    db: DbDependency
+):
+    """
+    Allows an authenticated user to save their Meta Ad Account ID and Access Token.
+    """
+    logger.info(f"User {current_user.email} is updating their Meta credentials.")
+    
+    updated_user = await user_service.update_user_meta_credentials(
+        db=db,
+        user_id=current_user.id,
+        ad_account_id=credentials.meta_ad_account_id,
+        access_token=credentials.meta_access_token
+    )
+    
+    if not updated_user:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Could not update Meta credentials."
+        )
+        
+    return UserPublic.from_user_in_db(updated_user)
+
+class MetaPageSaveRequest(BaseModel):
+    page_id: str
+    page_access_token: str
+
+    
+@router.post("/meta/save-page", response_model=UserPublic)
+async def save_meta_page(
+    request: MetaPageSaveRequest,
+    current_user: CurrentUserDependency,
+    db: DbDependency
+):
+    """
+    Saves the user's selected Facebook Page ID and a long-lived access token.
+    """
+    logger.info(f"User {current_user.email} saving Meta Page ID: {request.page_id}")
+    
+    updated_user = await user_service.update_user_meta_details(
+        db=db,
+        user_id=current_user.id,
+        page_id=request.page_id,
+        page_access_token=request.page_access_token
+    )
+    
+    if not updated_user:
+        raise HTTPException(status_code=404, detail="User not found during Meta page save.")
+        
+    return UserPublic.from_user_in_db(updated_user)
+
+@router.delete("/users/me/meta-credentials", response_model=UserPublic)
+async def disconnect_user_meta_account(
+    current_user: CurrentUserDependency,
+    db: DbDependency
+):
+    """
+    Allows an authenticated user to disconnect their Meta account by clearing credentials.
+    """
+    logger.info(f"User {current_user.email} is disconnecting their Meta account.")
+    
+    updated_user = await user_service.remove_user_meta_credentials(
+        db=db,
+        user_id=current_user.id
+    )
+    
+    if not updated_user:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Could not disconnect Meta account."
+        )
+        
+    return UserPublic.from_user_in_db(updated_user)
