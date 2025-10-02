@@ -100,7 +100,7 @@ async def generate_visual_post(
     
     try:
         genai.configure(api_key=GEMINI_API_KEY)
-        model = genai.GenerativeModel('gemini-1.5-flash-latest', generation_config={"response_mime_type": "application/json"})
+        model = genai.GenerativeModel('gemini-2.0-flash', generation_config={"response_mime_type": "application/json"})
         response = await model.generate_content_async(gemini_prompt)
         ad_content = json.loads(response.text)
     except Exception as e:

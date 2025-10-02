@@ -1,4 +1,3 @@
-# D:\socialadify\backend\app\core\config.py
 import os
 from dotenv import load_dotenv
 from pathlib import Path
@@ -27,25 +26,40 @@ except ValueError:
     ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
 # --- Host URLs for Redirects and Links ---
-# Renaming FRONTEND_URL to CLIENT_HOST for consistency
-CLIENT_HOST = os.getenv("FRONTEND_URL", "http://localhost:3000") 
+CLIENT_HOST = os.getenv("CLIENT_HOST", "http://localhost:3000") 
 SERVER_HOST = os.getenv("SERVER_HOST", "http://localhost:8000")
 
-# --- *** NEW: Google OAuth Credentials *** ---
+# --- Google OAuth Credentials ---
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
+
+# --- *** THE FIX: Add Meta OAuth Credentials *** ---
+# These lines load the variables from your .env file so the meta_auth_router can use them.
+META_APP_ID = os.getenv("META_APP_ID")
+META_APP_SECRET = os.getenv("META_APP_SECRET")
+
+# --- Meta System User Token for Automation ---
+META_SYSTEM_USER_ACCESS_TOKEN = os.getenv("META_SYSTEM_USER_ACCESS_TOKEN")
 
 
 # --- Basic Checks & Warnings ---
 if not DATABASE_URL:
-    print("⚠️ CRITICAL WARNING: DATABASE_URL not found in environment variables or .env file.")
-if SECRET_KEY == "your_default_fallback_secret_key_if_not_in_env_but_please_set_it":
-    print("⚠️ CRITICAL WARNING: SECRET_KEY is using a default fallback. Please set a strong, unique SECRET_KEY in your .env file.")
+    print("⚠️ CRITICAL WARNING: DATABASE_URL not found.")
+if not SECRET_KEY or SECRET_KEY == "your_default_fallback_secret_key_if_not_in_env_but_please_set_it":
+    print("⚠️ CRITICAL WARNING: SECRET_KEY is not set or is using a default.")
 if not GOOGLE_CLIENT_ID or not GOOGLE_CLIENT_SECRET:
-    print("⚠️ CRITICAL WARNING: GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET not found. Google OAuth will not work.")
+    print("⚠️ WARNING: GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET not found.")
+# --- NEW WARNINGS ---
+if not META_APP_ID or not META_APP_SECRET:
+    print("⚠️ WARNING: META_APP_ID or META_APP_SECRET not found. Meta OAuth flow will fail.")
+
+
 
 # --- Confirmation Logging ---
 print(f"Config loaded: DATABASE_URL (first 15 chars): {DATABASE_URL[:15] if DATABASE_URL else 'Not Set'}")
 print(f"Config loaded: Client Host URL for links: {CLIENT_HOST}")
 print(f"Config loaded: Server Host URL for links: {SERVER_HOST}")
 print(f"Config loaded: Google Client ID is {'Set' if GOOGLE_CLIENT_ID else 'Not Set'}")
+# --- NEW LOGGING ---
+print(f"Config loaded: Meta App ID is {'Set' if META_APP_ID else 'Not Set'}")
+print(f"Config loaded: Meta System User Token is {'Set' if META_SYSTEM_USER_ACCESS_TOKEN else 'Not Set'}")

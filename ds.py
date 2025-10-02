@@ -15,6 +15,6 @@ def print_directory_structure(root_dir, indent="", skip_folders=None):
         else:
             print(indent + f"📄 {item}")
 
-root_path = r"D:\socialadify\frontend"
+root_path = r"D:\socialadify\backend"
 print(f"Directory structure for: {root_path}\n")
 print_directory_structure(root_path)

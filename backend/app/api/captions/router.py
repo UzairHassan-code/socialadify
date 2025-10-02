@@ -75,7 +75,7 @@ async def generate_captions_with_gemini_async(prompt_text: str) -> List[str]:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Caption generation service is not configured (API Key missing).")
     try:
         genai.configure(api_key=GEMINI_API_KEY)
-        model = genai.GenerativeModel('gemini-1.5-flash-latest')
+        model = genai.GenerativeModel('gemini-2.0-flash')
         generation_config = genai.types.GenerationConfig(temperature=0.75, max_output_tokens=250)
         logger.info("Sending prompt to Gemini for single caption generation...")
         response = await model.generate_content_async(prompt_text, generation_config=generation_config)

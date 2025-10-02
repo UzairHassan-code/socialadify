@@ -1,4 +1,5 @@
 // D:/socialadify/frontend/src/context/AuthContext.tsx
+
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
@@ -20,7 +21,8 @@ interface AuthContextType {
     isAuthReady: boolean;
     error: string | null;
     login: (credentials: LoginFormData) => Promise<void>;
-    signup: (userData: SignupData) => Promise<UserPublic | undefined>;
+    // --- THE FIX: The signup function will now always return a UserPublic object on success, or throw on failure ---
+    signup: (userData: SignupData) => Promise<UserPublic>;
     logout: () => void;
     clearError: () => void;
     fetchAndUpdateUser: () => Promise<void>;
@@ -43,7 +45,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     const clearError = useCallback(() => { setError(null); }, []);
 
-    // --- THIS FUNCTION IS UPDATED ---
     const fetchAndUpdateUser = useCallback(async () => {
         const storedToken = localStorage.getItem('authToken');
         if (!storedToken) {
@@ -56,11 +57,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         try {
             const fetchedUser = await apiGetUserProfile(storedToken);
             
-            // This ensures React sees a new object and triggers a re-render.
             setUser({ ...fetchedUser }); 
             setToken(storedToken);
             
-            // Added for debugging, as you suggested.
             console.log("AuthProvider: Updated user context:", fetchedUser); 
 
         } catch (e) {
@@ -105,7 +104,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
     }, [router, clearError, fetchAndUpdateUser]);
 
-    const signup = useCallback(async (userData: SignupData): Promise<UserPublic | undefined> => {
+    // --- THE FIX: The function signature is updated to match the interface ---
+    const signup = useCallback(async (userData: SignupData): Promise<UserPublic> => {
         clearError();
         setIsLoading(true);
         try {
@@ -113,6 +113,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             return createdUser;
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Signup failed.');
+            // This throw is correct. It will cause the Promise to reject, which is handled by the calling component.
             throw err;
         } finally {
             setIsLoading(false);
@@ -152,3 +153,4 @@ export const useAuth = (): AuthContextType => {
     }
     return context;
 };
+

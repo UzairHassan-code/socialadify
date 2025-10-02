@@ -26,7 +26,7 @@ async def get_optimal_post_time(caption: str, platform: str, is_boosted: bool) -
     if not GEMINI_API_KEY:
         raise Exception("Gemini API key is not configured.")
 
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    model = genai.GenerativeModel('gemini-2.0-flash')
     
     # --- THIS IS THE NEW LOGIC ---
     if platform == "Google Ads":

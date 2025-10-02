@@ -2,33 +2,38 @@
 'use client';
 
 import React from 'react';
-// 1. Import the UnifiedCampaign interface from the dashboard page
 import { UnifiedCampaign } from '@/app/dashboard/page';
 
-// --- 2. UPDATED Component Props ---
+// --- MODIFIED: Component Props updated to handle comparison mode ---
 interface CampaignListProps {
     campaigns: UnifiedCampaign[];
-    selectedCampaignId: string | null;
     onCampaignSelect: (campaignId: string) => void;
     isLoading: boolean;
     error: string | null;
+    // Props for single-select mode
+    selectedCampaignId: string | null;
+    // Props for multi-select (comparison) mode
+    isComparing: boolean;
+    comparisonIds: string[];
 }
 
-// --- Platform Icon Component ---
+// --- Platform Icon Component (Unchanged) ---
 const GoogleLogoIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
     <svg className={className} viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
         <path fill="#4285F4" d="M21.35,11.1H12.18V13.83H18.69C18.36,17.64 15.19,19.27 12.19,19.27C8.36,19.27 5,16.25 5,12C5,7.9 8.2,4.73 12.19,4.73C15.29,4.73 17.1,6.7 17.1,6.7L19,4.72C19,4.72 16.56,2 12.19,2C6.42,2 2.03,6.8 2.03,12C2.03,17.05 6.16,22 12.19,22C17.6,22 21.5,18.33 21.5,12.91C21.5,11.76 21.35,11.1 21.35,11.1Z" />
     </svg>
 );
 
-
 const CampaignList: React.FC<CampaignListProps> = ({
     campaigns,
-    selectedCampaignId,
     onCampaignSelect,
     isLoading,
-    error
+    error,
+    selectedCampaignId,
+    isComparing,
+    comparisonIds
 }) => {
+    // --- Loading and Error states (Unchanged) ---
     if (isLoading) {
         return (
             <div className="bg-white p-4 rounded-lg shadow-md h-full">
@@ -41,7 +46,6 @@ const CampaignList: React.FC<CampaignListProps> = ({
             </div>
         );
     }
-
     if (error) {
         return (
             <div className="bg-white p-4 rounded-lg shadow-md h-full">
@@ -50,7 +54,6 @@ const CampaignList: React.FC<CampaignListProps> = ({
             </div>
         );
     }
-
     if (!campaigns || campaigns.length === 0) {
         return (
             <div className="bg-white p-4 rounded-lg shadow-md h-full">
@@ -63,42 +66,44 @@ const CampaignList: React.FC<CampaignListProps> = ({
     return (
         <div className="bg-white p-4 rounded-lg shadow-md h-full overflow-y-auto">
             <h3 className="text-md font-semibold text-gray-700 mb-3 border-b pb-2">
-                Campaigns
+                {isComparing ? 'Select 2 to Compare' : 'Campaigns'}
             </h3>
             <ul className="space-y-2">
-                {campaigns.map((campaign) => (
-                    <li key={campaign.id}>
-                        <button
-                            onClick={() => onCampaignSelect(campaign.id)}
-                            className={`w-full text-left px-3 py-2 rounded-md transition-colors duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-400
-                                ${selectedCampaignId === campaign.id
-                                    ? 'bg-indigo-500 text-white shadow-sm'
-                                    : 'bg-gray-50 hover:bg-indigo-100 text-gray-700'
-                                }`}
-                        >
-                            <div className="flex justify-between items-center">
-                                <span className="text-sm font-medium truncate" title={campaign.name}>
-                                    {campaign.name}
-                                </span>
-                                <span className={`text-xs px-2 py-0.5 rounded-full
-                                    ${selectedCampaignId === campaign.id
-                                        ? 'bg-indigo-400 text-white'
-                                        : 'bg-gray-200 text-gray-600'
-                                    }`}
-                                >
-                                    {campaign.clicks.toLocaleString()} Clicks
-                                </span>
-                            </div>
-                            <div className={`flex items-center text-xs mt-0.5 ${selectedCampaignId === campaign.id ? 'text-indigo-200' : 'text-gray-400'}`}>
-                                {campaign.platform === 'Google' && <GoogleLogoIcon className="w-3.5 h-3.5 mr-1.5" />}
-                                Status: {campaign.status}
-                            </div>
-                        </button>
-                    </li>
-                ))}
+                {campaigns.map((campaign) => {
+                    // --- NEW: Logic to determine the selection state and style ---
+                    const isSelected = isComparing 
+                        ? comparisonIds.includes(campaign.id)
+                        : selectedCampaignId === campaign.id;
+
+                    const buttonClasses = `w-full text-left px-3 py-2 rounded-md transition-all duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 
+                        ${isSelected
+                            ? (isComparing ? 'bg-green-600 text-white shadow-sm ring-green-500' : 'bg-indigo-600 text-white shadow-sm ring-indigo-500')
+                            : 'bg-gray-50 hover:bg-indigo-100 text-gray-700'
+                        }`;
+
+                    return (
+                        <li key={campaign.id}>
+                            <button onClick={() => onCampaignSelect(campaign.id)} className={buttonClasses}>
+                                <div className="flex justify-between items-center">
+                                    <span className="text-sm font-medium truncate" title={campaign.name}>
+                                        {campaign.name}
+                                    </span>
+                                    <span className={`text-xs px-2 py-0.5 rounded-full ${isSelected ? 'bg-white/20' : 'bg-gray-200 text-gray-600'}`}>
+                                        {campaign.clicks.toLocaleString()} Clicks
+                                    </span>
+                                </div>
+                                <div className={`flex items-center text-xs mt-0.5 ${isSelected ? 'text-white/70' : 'text-gray-400'}`}>
+                                    <GoogleLogoIcon className="w-3.5 h-3.5 mr-1.5" />
+                                    Status: {campaign.status}
+                                </div>
+                            </button>
+                        </li>
+                    );
+                })}
             </ul>
         </div>
     );
 };
 
 export default CampaignList;
+

@@ -1,6 +1,5 @@
 // D:\socialadify\frontend\src\services\insightsService.ts
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 import { UserPublic } from './authService';
 
@@ -30,6 +29,40 @@ export interface GoogleCampaign {
 
 interface GoogleCampaignsResponse {
     campaigns: GoogleCampaign[];
+}
+
+// --- Interfaces for detailed campaign performance data ---
+export interface TrendPoint {
+    date: string;
+    impressions: number;
+    clicks: number;
+    cost_micros: number;
+}
+
+// --- MODIFIED: The Statistics interface now includes all 10 metrics ---
+export interface Statistics {
+    impressions: number;
+    clicks: number;
+    cost: number;
+    ctr: number;
+    avg_cpc: number;
+    // New fields
+    reach: number;
+    frequency: number;
+    cpm: number;
+    conversions: number;
+    cpa: number;
+}
+
+export interface PerformanceData {
+    trends: TrendPoint[];
+    statistics: Statistics;
+}
+
+// --- Interface for AI Suggestion response ---
+export interface AISuggestion {
+    ad_id: string; // The backend uses 'ad_id', which will hold our campaign_id
+    suggestion: string;
 }
 
 
@@ -77,3 +110,33 @@ export async function getGoogleCampaigns(token: string): Promise<GoogleCampaigns
     if (!response.ok) return handleApiError(response, 'Failed to fetch Google Ads campaigns.');
     return response.json();
 }
+
+export const getGoogleCampaignPerformance = async (token: string, campaignId: string): Promise<PerformanceData> => {
+    const response = await fetch(`${API_BASE_URL}/insights/google/campaigns/${campaignId}/performance`, {
+        method: 'GET',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+        },
+    });
+    if (!response.ok) {
+        return handleApiError(response, 'Failed to fetch campaign performance data.');
+    }
+    return response.json();
+};
+
+// --- Function to fetch AI suggestion for a campaign ---
+export const getAiSuggestionForCampaign = async (token: string, campaignId: string): Promise<AISuggestion> => {
+    const response = await fetch(`${API_BASE_URL}/insights/campaign/${campaignId}/generate-suggestion`, {
+        method: 'POST', // Use POST as it triggers a process on the backend
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+        },
+    });
+    if (!response.ok) {
+        return handleApiError(response, 'Failed to fetch AI suggestion.');
+    }
+    return response.json();
+};
+

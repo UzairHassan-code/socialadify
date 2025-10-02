@@ -1,98 +1,50 @@
 # D:\socialadify\backend\app\api\insights\mock_data.py
-from datetime import datetime, timedelta
-import random
 
-# Define sample target audiences
-target_audiences = [
-    "Men 18-24", "Men 25-34", "Men 35-44",
-    "Women 18-24", "Women 25-34", "Women 35-44",
-    "All Ages"
-]
+# --- Mock Campaign 1 (The original one) ---
+MOCK_GOOGLE_CAMPAIGN_1 = {
+    "id": "MOCK-GOOGLE-CAMPAIGN-123",
+    "name": "🚀 SocialAdify Showcase Campaign (Mock)",
+    "status": "ENABLED",
+    "clicks": 0, "impressions": 0, "ctr": 0.0, "average_cpc": 0.0, "cost": 0.0,
+}
 
-def generate_daily_stats(start_date: datetime, days: int, base_ctr: float, base_roi: float, base_cpc: float):
-    daily_stats = []
-    for i in range(days):
-        date = start_date - timedelta(days=i)
-        impressions = random.randint(1000, 3000)
-        ctr = random.uniform(base_ctr - 1, base_ctr + 1)
-        clicks = int(impressions * (ctr / 100))
-        cpc = round(random.uniform(base_cpc - 0.1, base_cpc + 0.1), 2)
-        spend = round(clicks * cpc, 2)
-        roi = random.uniform(base_roi - 0.5, base_roi + 0.5)
-        revenue = round(spend * roi, 2)
-        conversions = random.randint(3, 15)
+MOCK_CAMPAIGN_PERFORMANCE_1 = {
+    "campaign_id": "MOCK-GOOGLE-CAMPAIGN-123",
+    "campaign_name": "🚀 SocialAdify Showcase Campaign (Mock)",
+    "status": "ENABLED",
+    "performance_data": [
+        {"date": "2025-09-24", "impressions": 1550, "clicks": 75, "cost_micros": 1500000},
+        {"date": "2025-09-25", "impressions": 1620, "clicks": 81, "cost_micros": 1650000},
+        {"date": "2025-09-26", "impressions": 1480, "clicks": 68, "cost_micros": 1400000},
+        {"date": "2025-09-27", "impressions": 1750, "clicks": 95, "cost_micros": 1900000},
+        {"date": "2025-09-28", "impressions": 1800, "clicks": 105, "cost_micros": 2150000},
+        {"date": "2025-09-29", "impressions": 1950, "clicks": 120, "cost_micros": 2400000},
+        {"date": "2025-09-30", "impressions": 2100, "clicks": 135, "cost_micros": 2650000},
+    ]
+}
 
-        daily_stats.append({
-            "date": date.strftime("%Y-%m-%d"),
-            "impressions": impressions,
-            "clicks": clicks,
-            "conversions": conversions,
-            "spend": spend,
-            "revenue": revenue
-        })
+# --- NEW: Mock Campaign 2 ---
+# We'll give it slightly different performance characteristics for a good comparison.
+MOCK_GOOGLE_CAMPAIGN_2 = {
+    "id": "MOCK-GOOGLE-CAMPAIGN-456",
+    "name": "📈 Q4 Sales Push (Mock)",
+    "status": "ENABLED",
+    "clicks": 0, "impressions": 0, "ctr": 0.0, "average_cpc": 0.0, "cost": 0.0,
+}
 
-    return daily_stats
+MOCK_CAMPAIGN_PERFORMANCE_2 = {
+    "campaign_id": "MOCK-GOOGLE-CAMPAIGN-456",
+    "campaign_name": "📈 Q4 Sales Push (Mock)",
+    "status": "ENABLED",
+    "performance_data": [
+        # This campaign will have higher impressions and cost, but lower clicks (less efficient)
+        {"date": "2025-09-24", "impressions": 2200, "clicks": 65, "cost_micros": 1800000},
+        {"date": "2025-09-25", "impressions": 2350, "clicks": 72, "cost_micros": 1950000},
+        {"date": "2025-09-26", "impressions": 2100, "clicks": 60, "cost_micros": 1700000},
+        {"date": "2025-09-27", "impressions": 2500, "clicks": 85, "cost_micros": 2300000},
+        {"date": "2025-09-28", "impressions": 2600, "clicks": 90, "cost_micros": 2550000},
+        {"date": "2025-09-29", "impressions": 2850, "clicks": 100, "cost_micros": 2800000},
+        {"date": "2025-09-30", "impressions": 3100, "clicks": 110, "cost_micros": 3050000},
+    ]
+}
 
-today = datetime.today()
-
-# Generate mock ad campaign data
-mock_ads_data = [
-    {
-        "id": "meta_ad_001",
-        "platform": "Meta",
-        "campaign_name": "Winter Sale Campaign",
-        "ad_type": "video",
-        "region": "North America",
-        "target_audience": random.choice(target_audiences),
-        "impressions": 15000,
-        "clicks": 1200,
-        "conversions": 90,
-        "roi": 2.5,
-        "ctr": 8.0,
-        "engagement_rate": 6.5,
-        "cpc": 0.75,
-        "spend": 900,
-        "revenue": 2250,
-        "daily_stats": generate_daily_stats(today, 7, base_ctr=8.0, base_roi=2.5, base_cpc=0.75)
-    },
-    {
-        "id": "google_ad_002",
-        "platform": "Google",
-        "campaign_name": "Summer Launch",
-        "ad_type": "image",
-        "region": "Europe",
-        "target_audience": random.choice(target_audiences),
-        "impressions": 20000,
-        "clicks": 1600,
-        "conversions": 110,
-        "roi": 3.0,
-        "ctr": 8.0,
-        "engagement_rate": 7.0,
-        "cpc": 0.80,
-        "spend": 1280,
-        "revenue": 3840,
-        "daily_stats": generate_daily_stats(today, 7, base_ctr=8.0, base_roi=3.0, base_cpc=0.80)
-    },
-    {
-        "id": "meta_ad_003",
-        "platform": "Meta",
-        "campaign_name": "Flash Deals",
-        "ad_type": "carousel",
-        "region": "Asia",
-        "target_audience": random.choice(target_audiences),
-        "impressions": 18000,
-        "clicks": 1500,
-        "conversions": 105,
-        "roi": 2.8,
-        "ctr": 8.33,
-        "engagement_rate": 6.9,
-        "cpc": 0.78,
-        "spend": 1170,
-        "revenue": 3276,
-        "daily_stats": generate_daily_stats(today, 7, base_ctr=8.3, base_roi=2.8, base_cpc=0.78)
-    }
-]
-
-# Optional: preview the output
-from pprint import pprint
-pprint(mock_ads_data)

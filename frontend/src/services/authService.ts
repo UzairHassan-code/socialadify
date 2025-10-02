@@ -1,9 +1,12 @@
-// D:\socialadify\frontend\src\services\authService.ts
+// D:\socialadify\frontend\src/services/authService.ts
+// Merged version
+
 /* eslint-disable no-console */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
 
 // --- Interfaces ---
+
 export interface SignupData {
     email: string;
     password: string;
@@ -28,9 +31,11 @@ export interface UserPublic {
     email: string;
     profile_picture_url?: string | null;
     is_admin: boolean;
-    meta_ad_account_id?: string | null;
+
     google_ad_account_id?: string | null;
-    meta_page_id?: string | null; 
+    linked_page_id?: string | null;
+    linked_page_name?: string | null;
+    linked_instagram_username?: string | null;
 }
 
 export interface UserProfileUpdateData {
@@ -63,6 +68,7 @@ export interface MetaCredentialsPayload {
 }
 
 // --- Error Handling ---
+
 async function handleApiError(response: Response, defaultErrorMessage: string): Promise<never> {
     let processedErrorMessage = defaultErrorMessage;
     try {
@@ -114,6 +120,15 @@ export async function getGoogleAuthUrl(token: string): Promise<{ authorization_u
         headers: { 'Authorization': `Bearer ${token}` },
     });
     if (!response.ok) return handleApiError(response, 'Failed to get Google auth URL.');
+    return response.json();
+}
+
+export async function getMetaAuthUrl(token: string): Promise<{ authorization_url: string }> {
+    const response = await fetch(`${API_BASE_URL}/auth/meta/auth-url`, {
+        method: 'GET',
+        headers: { 'Authorization': `Bearer ${token}` },
+    });
+    if (!response.ok) return handleApiError(response, 'Failed to get Meta auth URL.');
     return response.json();
 }
 
@@ -170,42 +185,5 @@ export async function apiSaveMetaCredentials(token: string, payload: MetaCredent
         body: JSON.stringify(payload),
     });
     if (!response.ok) return handleApiError(response, 'Failed to save Meta credentials.');
-    return response.json();
-}
-export async function saveMetaPageDetails(token: string, pageId: string, pageAccessToken: string): Promise<any> {
-    // This assumes your backend has an endpoint at /auth/meta/save-page
-    // We will need to create this endpoint in the backend later.
-    const response = await fetch(`${API_BASE_URL}/auth/meta/save-page`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-            page_id: pageId,
-            page_access_token: pageAccessToken,
-        }),
-    });
-
-    if (!response.ok) {
-        // You should have a handleApiError function here, assuming it's defined elsewhere in the file
-        // For now, throwing a generic error.
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Failed to save Meta page details.');
-    }
-    return response.json();
-}
-
-export async function disconnectMetaAccount(token: string): Promise<UserPublic> {
-    const response = await fetch(`${API_BASE_URL}/auth/users/me/meta-credentials`, {
-        method: 'DELETE',
-        headers: {
-            'Authorization': `Bearer ${token}`,
-        },
-    });
-
-    if (!response.ok) {
-        return handleApiError(response, 'Failed to disconnect Meta account.');
-    }
     return response.json();
 }
