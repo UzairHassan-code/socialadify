@@ -12,7 +12,6 @@ const AppLogo = ({ className = "w-10 h-10 text-white" }: { className?: string })
         <path fillRule="evenodd" clipRule="evenodd" d="M12 2C17.5228 2 22 6.47715 22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2ZM12 6C9.14344 6 6.79378 7.65981 5.64006 9.99995H8.04005C8.82681 8.78081 10.2993 8 12 8C13.7007 8 15.1732 8.78081 15.9599 9.99995H18.3599C17.2062 7.65981 14.8566 6 12 6ZM12 16C10.2993 16 8.82681 15.2191 8.04005 14H5.64006C6.79378 16.3401 9.14344 18 12 18C14.8566 18 17.2062 16.3401 18.3599 14H15.9599C15.1732 15.2191 13.7007 16 12 16ZM5 12C5 11.7181 5.01793 11.4402 5.05279 11.1667H18.9472C18.9821 11.4402 19 11.7181 19 12C19 12.2819 18.9821 12.5597 18.9472 12.8333H5.05279C5.01793 12.5597 5 12.2819 5 12Z"/>
     </svg>
 );
-const GoogleIcon = () => <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M21.805 10.034C21.805 9.389 21.744 8.763 21.624 8.16H12.155V11.69H17.57C17.343 12.915 16.605 13.965 15.511 14.713V17.11H18.954C20.798 15.461 21.805 12.989 21.805 10.034Z" fill="#4285F4"/><path d="M12.155 22.0001C15.011 22.0001 17.383 21.0531 18.954 19.5181L15.511 17.1101C14.605 17.7101 13.482 18.0701 12.155 18.0701C9.49801 18.0701 7.24201 16.3101 6.43101 13.8961L2.86801 13.8961V16.3771C4.44001 19.6571 7.99101 22.0001 12.155 22.0001Z" fill="#34A853"/><path d="M6.43101 13.8967C6.20401 13.2517 6.07601 12.5607 6.07601 11.8337C6.07601 11.1067 6.20401 10.4157 6.43101 9.77075V7.28875L2.86801 7.28875C2.13701 8.71675 1.73201 10.2217 1.73201 11.8337C1.73201 13.4457 2.13701 14.9507 2.86801 16.3787L6.43101 13.8967Z" fill="#FBBC05"/><path d="M12.155 6.5999C13.596 6.5999 14.702 7.0869 15.581 7.9239L19.029 4.6999C17.378 3.1679 15.006 2.2669 12.155 2.2669C7.99101 2.2669 4.44001 4.6109 2.86801 7.2889L6.43101 9.7709C7.24201 7.3569 9.49801 6.5999 12.155 6.5999Z" fill="#EA4335"/></svg>;
 
 // Password Hint and Validation Display Component
 const PasswordHintAndValidationDisplay = ({ password, showDetails }: { password?: string; showDetails?: boolean }) => {
@@ -24,7 +23,6 @@ const PasswordHintAndValidationDisplay = ({ password, showDetails }: { password?
         { label: "One special character (e.g. !@#$)", met: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/.test(password || '') }
     ];
 
-    // Define icons with fixed small size and color, allowing additional classes to be passed for margin etc.
     const CheckIcon = ({ additionalClassName="" }: {additionalClassName?: string}) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className={`w-3.5 h-3.5 text-green-600 ${additionalClassName}`}><path fillRule="evenodd" d="M12.416 3.376a.75.75 0 0 1 .208 1.04l-5 7.5a.75.75 0 0 1-1.154.114l-3-3a.75.75 0 0 1 1.06-1.06l2.353 2.353 4.493-6.74a.75.75 0 0 1 1.04-.207Z" clipRule="evenodd" /></svg>;
     const CrossIcon = ({additionalClassName=""}: {additionalClassName?: string}) => <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className={`w-3.5 h-3.5 text-slate-400 ${additionalClassName}`}><path d="M5.28 4.22a.75.75 0 0 0-1.06 1.06L6.94 8l-2.72 2.72a.75.75 0 1 0 1.06 1.06L8 9.06l2.72 2.72a.75.75 0 1 0 1.06-1.06L9.06 8l2.72-2.72a.75.75 0 0 0-1.06-1.06L8 6.94 5.28 4.22Z" /></svg>;
 
@@ -245,19 +243,8 @@ export default function SignupPage() {
             </button>
           </form>
 
-          <div className="my-6 flex items-center">
-            <div className="flex-grow border-t border-slate-300"></div>
-            <span className="mx-3 text-xs font-medium text-slate-500">OR</span>
-            <div className="flex-grow border-t border-slate-300"></div>
-          </div>
+          {/* --- REMOVED: Google Sign Up Button and "OR" divider --- */}
 
-          <button 
-              type="button" 
-              className="w-full flex items-center justify-center px-4 py-2.5 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1 transition shadow-sm disabled:opacity-70" 
-              disabled={authIsLoading}
-          >
-              <GoogleIcon /> <span className="ml-2.5">Sign Up with Google</span>
-          </button>
         </div>
       </div>
     </div>

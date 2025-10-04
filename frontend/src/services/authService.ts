@@ -1,4 +1,4 @@
-// D:\socialadify\frontend\src/services/authService.ts
+// D:\socialadify\frontend\src\services\authService.ts
 // Merged version
 
 /* eslint-disable no-console */
@@ -81,6 +81,29 @@ async function handleApiError(response: Response, defaultErrorMessage: string): 
 }
 
 // --- API Functions ---
+
+// --- NEW: Functions for Password Reset ---
+export async function requestPasswordReset(payload: RequestPasswordResetPayloadFE): Promise<{ message: string }> {
+    const response = await fetch(`${API_BASE_URL}/auth/forgot-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+    });
+    if (!response.ok) return handleApiError(response, 'Failed to request password reset.');
+    return response.json();
+}
+
+export async function resetPassword(payload: ResetPasswordPayloadFE): Promise<{ message: string }> {
+    const response = await fetch(`${API_BASE_URL}/auth/reset-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+    });
+    if (!response.ok) return handleApiError(response, 'Failed to reset password.');
+    return response.json();
+}
+// --- END of new functions ---
+
 
 export async function signupUser(userData: SignupData): Promise<UserPublic> {
     const response = await fetch(`${API_BASE_URL}/auth/signup`, {
@@ -187,3 +210,4 @@ export async function apiSaveMetaCredentials(token: string, payload: MetaCredent
     if (!response.ok) return handleApiError(response, 'Failed to save Meta credentials.');
     return response.json();
 }
+

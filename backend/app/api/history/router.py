@@ -1,12 +1,12 @@
 # D:\socialadify\backend\app\api\history\router.py
 from fastapi import APIRouter, Depends
+from fastapi.responses import JSONResponse
 from typing import List, Union
 from app.core.security import get_current_active_user
 from app.schemas.user import UserInDB
 from app.db.session import get_database
 import logging
 
-# Import CRUD functions and Public Schemas for both types
 from app.crud import caption as caption_crud
 from app.crud import generated_post as post_crud
 from app.api.captions.schemas import CaptionPublic
@@ -17,10 +17,37 @@ CurrentUserDependency = Depends(get_current_active_user)
 DbDependency = Depends(get_database)
 logger = logging.getLogger(__name__)
 
-# Define a new response type that can be either a Caption or a Post
+# This Union is now used for internal type hinting only
 HistoryItem = Union[CaptionPublic, GeneratedPostPublic]
 
-@router.get("/", response_model=List[HistoryItem])
+# --- MODIFIED: Created separate, explicit formatters for each item type ---
+
+def format_caption_item(item: CaptionPublic) -> dict:
+    """Explicitly formats a caption item into a dictionary for the frontend."""
+    return {
+        "id": str(item.id),
+        "user_id": str(item.user_id),
+        # --- THIS IS THE FIX: Access 'caption_text' instead of 'caption' ---
+        "caption": item.caption_text,
+        "created_at": item.created_at.isoformat(),
+        "item_type": "caption"
+    }
+
+def format_post_item(item: GeneratedPostPublic) -> dict:
+    """
+    Explicitly formats a post item into a dictionary for the frontend.
+    It maps 'prompt_used' to 'caption' as the frontend expects this field.
+    """
+    return {
+        "id": str(item.id),
+        "user_id": str(item.user_id),
+        "caption": item.prompt_used,  # Map prompt to the base 'caption' field
+        "image_url": item.image_url,
+        "created_at": item.created_at.isoformat(),
+        "item_type": "post"
+    }
+
+@router.get("/")
 async def get_unified_history(
     current_user: UserInDB = CurrentUserDependency,
     db = DbDependency
@@ -31,35 +58,20 @@ async def get_unified_history(
     """
     user_id = current_user.id
     
-    # 1. Fetch all saved captions
+    # 1. Fetch all items from the database (unchanged)
     captions_in_db = await caption_crud.get_captions_by_user_id(db=db, user_id=user_id, limit=1000)
-    
-    # 2. Fetch all saved visual posts
     posts_in_db = await post_crud.get_generated_posts_by_user_id(db=db, user_id=user_id)
     
-    # 3. Process captions to add item_type and format ID
-    typed_captions = []
-    for caption in captions_in_db:
-        caption_dict = caption.model_dump()
-        caption_dict["id"] = str(caption_dict["id"])
-        caption_dict["user_id"] = str(caption_dict["user_id"])
-        caption_dict["item_type"] = "caption"
-        typed_captions.append(CaptionPublic.model_validate(caption_dict))
+    # 2. --- THIS IS THE DEFINITIVE FIX ---
+    # Process each list with its own dedicated, explicit formatting function.
+    # This guarantees that the structure is exactly what the frontend needs.
+    typed_captions = [format_caption_item(caption) for caption in captions_in_db]
+    typed_posts = [format_post_item(post) for post in posts_in_db]
         
-    # 4. *** THIS IS THE FIX ***
-    # Process posts to add item_type and format ID, just like captions
-    typed_posts = []
-    for post in posts_in_db:
-        post_dict = post.model_dump()
-        post_dict["id"] = str(post_dict["id"])
-        post_dict["user_id"] = str(post_dict["user_id"])
-        post_dict["item_type"] = "post"
-        typed_posts.append(GeneratedPostPublic.model_validate(post_dict))
-        
-    # 5. Combine the two PROCESSED lists
+    # 3. Combine and sort the processed lists (unchanged)
     combined_history = typed_captions + typed_posts
+    combined_history.sort(key=lambda item: item['created_at'], reverse=True)
     
-    # 6. Sort the combined list by 'created_at' date, newest first
-    combined_history.sort(key=lambda item: item.created_at, reverse=True)
-    
-    return combined_history
+    # 4. Return as a JSONResponse to ensure the data is sent as-is.
+    return JSONResponse(content=combined_history)
+
