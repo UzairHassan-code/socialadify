@@ -1,9 +1,8 @@
-// D:\socialadify\frontend\src\services\postGeneratorService.ts
+// D:/socialadify/frontend/src/services/postGeneratorService.ts
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
-// --- Types for the API communication ---
-
+// --- Types for AI Post Generation ---
 export interface PostGenerationPayload {
     product_name: string;
     target_audience: string;
@@ -19,11 +18,31 @@ export interface PostGenerationResult {
     prompt_used: string;
 }
 
-// *** NEW TYPE for the save request payload ***
 export interface SavePostPayload {
     image_data_url: string;
     prompt_used: string;
     original_request: PostGenerationPayload;
+}
+
+// --- Types for Template Feature ---
+export interface EditableField {
+    key: string;
+    label: string;
+    type: string;
+    position: { x: number; y: number };
+    font: string;
+    font_size: number;
+    color: string;
+    max_length: number;
+}
+
+export interface Template {
+    id: string;
+    name: string;
+    description: string;
+    preview_image_path: string;
+    base_image_path: string;
+    editable_fields?: EditableField[];
 }
 
 
@@ -44,8 +63,6 @@ async function handleApiError(response: Response, defaultErrorMessage: string): 
 
 // --- API Call Functions ---
 export async function generateVisualPost(token: string, payload: PostGenerationPayload): Promise<PostGenerationResult> {
-    console.log("postGeneratorService: Sending payload to backend:", payload);
-    
     const response = await fetch(`${API_BASE_URL}/post-generator/generate`, {
         method: 'POST',
         headers: {
@@ -65,10 +82,7 @@ export async function generateVisualPost(token: string, payload: PostGenerationP
     return response.json();
 }
 
-// *** NEW FUNCTION to save the post ***
 export async function saveVisualPost(token: string, payload: SavePostPayload): Promise<{ message: string }> {
-    console.log("postGeneratorService: Saving post to DB.");
-    
     const response = await fetch(`${API_BASE_URL}/post-generator/save`, {
         method: 'POST',
         headers: {
@@ -87,3 +101,42 @@ export async function saveVisualPost(token: string, payload: SavePostPayload): P
 
     return response.json();
 }
+
+// --- Functions for Template Feature ---
+export async function getTemplates(token: string): Promise<Template[]> {
+    const response = await fetch(`${API_BASE_URL}/templates`, {
+        method: 'GET',
+        headers: { 'Authorization': `Bearer ${token}` },
+    });
+    if (!response.ok) {
+        return handleApiError(response, 'Failed to fetch templates.');
+    }
+    
+    const data = await response.json();
+    
+    // --- ADDED THIS DEBUG LINE ---
+    console.log("--- DEBUG: Raw data received from API:", data);
+    // ---------------------------
+
+    return data;
+}
+
+export async function generateFromTemplate(
+    token: string,
+    templateId: string,
+    fieldValues: Record<string, string>
+): Promise<{ generated_image_url: string }> {
+    const response = await fetch(`${API_BASE_URL}/templates/${templateId}/generate`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ field_values: fieldValues }),
+    });
+    if (!response.ok) {
+        return handleApiError(response, 'Failed to generate image from template.');
+    }
+    return response.json();
+}
+

@@ -9,7 +9,7 @@ import {
     deleteScheduledPost,
     ScheduledPost,
     SchedulePostPayload,
-    getAISuggestion, // Import the new function
+    getAISuggestion,
 } from '../../services/schedulerService';
 import { HistoryItem } from '../../services/historyService';
 import Link from 'next/link';
@@ -42,7 +42,6 @@ const DeletePostConfirmationModal: React.FC<DeleteConfirmationModalProps> = ({ i
     );
 };
 const UploadIcon = ({ className = "w-10 h-10 text-slate-500 group-hover:text-orange-400" }: { className?: string }) => ( <svg className={className} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" /></svg> );
-const CalendarDaysIcon = ({ className = "w-5 h-5"}: { className?: string}) => ( <svg className={className} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5m-9-3.75h.008v.008H12v-.008z" /></svg> );
 const LoadingSpinner = ({ className = "animate-spin h-5 w-5 text-white" }: {className?: string}) => ( <svg className={className} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> );
 const EditIcon = ({ className = "w-4 h-4" }: { className?: string }) => ( <svg className={className} xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg> );
 const DeleteIcon = ({ className = "w-4 h-4" }: { className?: string }) => ( <svg className={className} xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg> );
@@ -54,17 +53,14 @@ const API_BASE_URL_STATIC = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://loca
 export default function SchedulerPage() {
     const { token, isAuthReady, isAuthenticated } = useAuth();
 
-
     // --- Form State ---
     const [caption, setCaption] = useState('');
     const [imageFile, setImageFile] = useState<File | null>(null);
     const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
     const [scheduledDateTime, setScheduledDateTime] = useState('');
     const [targetPlatform, setTargetPlatform] = useState('');
-    const [autoBoost, setAutoBoost] = useState(false);
-    const [boostBudget, setBoostBudget] = useState('');
-    const [boostDuration, setBoostDuration] = useState('');
     const [aiReasoning, setAiReasoning] = useState<string | null>(null);
+    
     // --- Page State ---
     const [scheduledPosts, setScheduledPosts] = useState<ScheduledPost[]>([]);
     const [isLoading, setIsLoading] = useState(false);
@@ -77,8 +73,6 @@ export default function SchedulerPage() {
     const [isDeleteConfirmModalOpen, setIsDeleteConfirmModalOpen] = useState(false);
     const [postToDelete, setPostToDelete] = useState<ScheduledPost | null>(null);
     const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-    
-    // --- NEW STATE for AI Suggestion loading ---
     const [isGettingSuggestion, setIsGettingSuggestion] = useState(false);
 
     const loadScheduledPosts = useCallback(async () => {
@@ -86,13 +80,14 @@ export default function SchedulerPage() {
         setIsFetchingPosts(true);
         try {
             const posts = await fetchScheduledPosts(token);
-            setScheduledPosts(posts);
+            const sortedPosts = posts.sort((a, b) => new Date(b.scheduled_at).getTime() - new Date(a.scheduled_at).getTime());
+            setScheduledPosts(sortedPosts);
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to load posts.");
         } finally {
             setIsFetchingPosts(false);
         }
-     }, [token]);
+    }, [token]);
 
     useEffect(() => { 
         if(isAuthenticated) {
@@ -124,9 +119,7 @@ export default function SchedulerPage() {
             image_file: imageFile,
             target_platform: targetPlatform || undefined,
             auto_post: true,
-            auto_boost: autoBoost,
-            boost_budget: autoBoost ? parseFloat(boostBudget) : undefined,
-            boost_duration_days: autoBoost ? parseInt(boostDuration, 10) : undefined,
+            auto_boost: false,
         };
 
         try {
@@ -137,9 +130,6 @@ export default function SchedulerPage() {
             setImagePreviewUrl(null);
             setScheduledDateTime('');
             setTargetPlatform('');
-            setAutoBoost(false);
-            setBoostBudget('');
-            setBoostDuration('');
             loadScheduledPosts();
         } catch(err) {
             setError(err instanceof Error ? err.message : "Failed to schedule post.");
@@ -148,7 +138,6 @@ export default function SchedulerPage() {
         }
     };
 
-    // --- NEW HANDLER for AI Suggestion button ---
     const handleGetAISuggestion = async () => {
         if (!token) {
             setError("You must be logged in to use this feature.");
@@ -164,13 +153,10 @@ export default function SchedulerPage() {
             const response = await getAISuggestion(token, {
                 caption: caption,
                 target_platform: targetPlatform,
-                is_boosted: autoBoost
+                is_boosted: false
             });
-
-            // The backend returns a UTC string like "YYYY-MM-DDTHH:MM:SS"
-            // The datetime-local input needs this format, so we can set it directly.
             setScheduledDateTime(response.suggested_time_utc);
-            setAiReasoning(response.reasoning || null); // Set the reasoning
+            setAiReasoning(response.reasoning || null);
 
             setTimeout(() => {
                 setAiReasoning(null);
@@ -181,7 +167,6 @@ export default function SchedulerPage() {
             setIsGettingSuggestion(false);
         }
     };
-
 
     const confirmDeletePost = async () => { 
         if (!postToDelete || !token) return;
@@ -215,13 +200,13 @@ export default function SchedulerPage() {
         if (item.item_type === 'post' && item.image_url) {
             setImagePreviewUrl(`${API_BASE_URL_STATIC}${item.image_url}`);
             setImageFile(null);
-            alert("Visual has been imported. You must still re-upload the image file to schedule the post.");
+            setSuccessMessage("Visual imported! Please re-upload the image file to finalize.");
+            setTimeout(() => setSuccessMessage(null), 4000);
         }
     };
 
     const inputBaseClass = "w-full px-4 py-2.5 text-sm border border-slate-600 rounded-lg shadow-sm focus:ring-2 focus:ring-orange-400 outline-none transition bg-slate-700/50 text-slate-100";
     const labelBaseClass = "block text-sm font-medium text-slate-300 mb-1.5";
-    const buttonPrimaryClass = "w-full flex items-center justify-center px-6 py-3 text-sm font-semibold rounded-lg shadow-md focus:outline-none focus:ring-2 focus:ring-indigo-500 transition disabled:opacity-60 bg-indigo-600 hover:bg-indigo-500 text-white";
     const cardBaseClass = "bg-slate-800/70 backdrop-blur-xl rounded-2xl shadow-2xl p-6 sm:p-8 border border-slate-700/80";
 
     if (!isAuthReady) { return <div className="flex items-center justify-center min-h-screen"><LoadingSpinner/></div>; }
@@ -232,7 +217,7 @@ export default function SchedulerPage() {
             <div className="relative z-10 container mx-auto px-4 sm:px-6 lg:px-8 py-12">
                 <div className="space-y-10">
                     <header className="text-center">
-                        <h1 className="text-4xl sm:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-indigo-300 to-pink-300 pb-2">Post Scheduler</h1>
+                        <h1 className="text-4xl sm:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-orange-300 to-red-400 pb-2">Post Scheduler</h1>
                         <p className="mt-3 text-md text-slate-400 max-w-2xl mx-auto">Plan and automate your social media content.</p>
                     </header>
                     
@@ -269,7 +254,6 @@ export default function SchedulerPage() {
                             <div>
                                 <div className="flex justify-between items-center">
                                     <label htmlFor="scheduledDateTime" className={`${labelBaseClass} mb-0`}>Schedule Date & Time*</label>
-                                    {/* --- CONNECT THE BUTTON --- */}
                                     <button 
                                         type="button" 
                                         onClick={handleGetAISuggestion} 
@@ -288,35 +272,10 @@ export default function SchedulerPage() {
                                     </button>
                                 </div>
                                 <input type="datetime-local" id="scheduledDateTime" value={scheduledDateTime} onChange={(e) => setScheduledDateTime(e.target.value)} className={inputBaseClass} required min={new Date().toISOString().slice(0, 16)} />
-                            </div>
-
-                            {/* Automation and Boosting Section */}
-                                {/* --- ADD THIS BLOCK --- */}
                                 {aiReasoning && (
                                     <p className="text-xs text-slate-400 mt-2 p-2 bg-slate-700/50 rounded-md italic">
                                         <strong>AI Suggestion:</strong> {aiReasoning}
                                     </p>
-                                )}
-                            <div className="space-y-4 pt-4 border-t border-slate-700/50">
-                                <div className="flex items-center justify-between">
-                                    <label htmlFor="autoBoost" className="font-medium text-slate-200">Automatically Boost Post?</label>
-                                    <label className="relative inline-flex items-center cursor-pointer">
-                                        <input type="checkbox" id="autoBoost" checked={autoBoost} onChange={(e) => setAutoBoost(e.target.checked)} className="sr-only peer" />
-                                        <div className="w-11 h-6 bg-slate-600 rounded-full peer peer-focus:ring-2 peer-focus:ring-orange-400 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
-                                    </label>
-                                </div>
-
-                                {autoBoost && (
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pl-4 border-l-2 border-indigo-500/50">
-                                        <div>
-                                            <label htmlFor="boostBudget" className={labelBaseClass}>Budget (Rs)*</label>
-                                            <input type="number" id="boostBudget" value={boostBudget} onChange={(e) => setBoostBudget(e.target.value)} className={inputBaseClass} placeholder="e.g., 5000" min="1" required={autoBoost} />
-                                        </div>
-                                        <div>
-                                            <label htmlFor="boostDuration" className={labelBaseClass}>Duration (Days)*</label>
-                                            <input type="number" id="boostDuration" value={boostDuration} onChange={(e) => setBoostDuration(e.target.value)} className={inputBaseClass} placeholder="e.g., 7" min="1" required={autoBoost} />
-                                        </div>
-                                    </div>
                                 )}
                             </div>
 
@@ -327,7 +286,6 @@ export default function SchedulerPage() {
                                     <option value="" className="bg-slate-700">Select Platform </option>
                                     <option value="Instagram" className="bg-slate-700">Instagram</option>
                                     <option value="Facebook" className="bg-slate-700">Facebook</option>
-                                    <option value="Google Ads" className="bg-slate-700">Google Ads</option>
                                 </select>
                             </div>
                             
@@ -335,8 +293,8 @@ export default function SchedulerPage() {
                             {successMessage && <p className="text-sm text-green-400 text-center">{successMessage}</p>}
                             
                             <div className="pt-2">
-                                <button type="submit" disabled={isLoading} className={buttonPrimaryClass}>
-                                    {isLoading && <LoadingSpinner className="mr-2 h-5 w-5"/>}
+                                <button type="submit" disabled={isLoading} className="w-full flex items-center justify-center gap-2 px-6 py-3 text-sm font-semibold rounded-lg shadow-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 transition disabled:opacity-60 bg-orange-600 hover:bg-orange-500 text-white">
+                                    {isLoading && <LoadingSpinner className="mr-1 h-5 w-5"/>}
                                     {isLoading ? 'Scheduling...' : 'Schedule Post'}
                                 </button>
                             </div>
@@ -346,7 +304,7 @@ export default function SchedulerPage() {
                     <section className={`${cardBaseClass} max-w-4xl mx-auto`}>
                         <h2 className="text-xl font-semibold text-slate-100 mb-6">Your Scheduled Posts</h2>
                         {isFetchingPosts ? (
-                            <div className="flex justify-center items-center py-10"><LoadingSpinner className="h-8 w-8 text-indigo-400" /></div>
+                            <div className="flex justify-center items-center py-10"><LoadingSpinner className="h-8 w-8 text-orange-400" /></div>
                         ) : scheduledPosts.length > 0 ? (
                             <div className="space-y-4">
                                 {scheduledPosts.map(post => (
@@ -356,11 +314,18 @@ export default function SchedulerPage() {
                                         </div>
                                         <div className="flex-grow min-w-0">
                                             <p className="text-sm text-slate-300 whitespace-pre-wrap break-words">{post.caption}</p>
-                                            <p className="text-xs text-slate-400">Scheduled for: <span className="font-medium text-orange-300">{formatDate(post.scheduled_at)}</span></p>
-                                            <p className={`text-xs font-semibold ${post.status === 'completed' ? 'text-green-400' : 'text-cyan-400'}`}>Status: {post.status}</p>
+                                            <div className="mt-2 pt-2 border-t border-slate-700/50">
+                                                <p className="text-xs text-slate-400">To: <span className="font-medium text-slate-200">{post.target_platform || 'Not Specified'}</span></p>
+                                                <p className="text-xs text-slate-400">On: <span className="font-medium text-orange-300">{formatDate(post.scheduled_at)}</span></p>
+                                                <p className={`text-xs font-semibold ${post.status === 'completed' ? 'text-green-400' : 'text-cyan-400'}`}>Status: <span className="capitalize">{post.status}</span></p>
+                                            </div>
                                         </div>
                                         <div className="flex items-center gap-2 ml-4">
-                                            <button onClick={() => handleOpenEditModal(post)} className="p-2 text-slate-400 hover:text-sky-400 rounded-md hover:bg-slate-700" title="Edit Post"><EditIcon /></button>
+                                            {/* --- THIS IS THE FIX --- */}
+                                            {/* The Edit button will only render if the post status is NOT 'completed' */}
+                                            {post.status !== 'completed' && (
+                                                <button onClick={() => handleOpenEditModal(post)} className="p-2 text-slate-400 hover:text-sky-400 rounded-md hover:bg-slate-700" title="Edit Post"><EditIcon /></button>
+                                            )}
                                             <button onClick={() => { setPostToDelete(post); setIsDeleteConfirmModalOpen(true); }} className="p-2 text-slate-400 hover:text-red-400 rounded-md hover:bg-slate-700" title="Delete Post" disabled={deletingPostId === post.id}>
                                                 {deletingPostId === post.id ? <LoadingSpinner className="h-4 w-4" /> : <DeleteIcon />}
                                             </button>
@@ -382,3 +347,4 @@ export default function SchedulerPage() {
         </>
     );
 }
+

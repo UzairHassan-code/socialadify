@@ -1,4 +1,4 @@
-// D:\socialadify\frontend\src/components/CampaignComparisonChart.tsx
+// D:\socialadify\frontend\src\components\CampaignComparisonChart.tsx
 'use client';
 
 import React from 'react';
@@ -8,7 +8,6 @@ import {
     Tooltip, Legend, ChartOptions, ChartData, PointElement, LineElement,
     RadialLinearScale, Filler
 } from 'chart.js';
-// --- MODIFIED: Import the new data structure from the parent page ---
 import { ComparisonData } from '@/app/dashboard/page';
 
 ChartJS.register(
@@ -20,8 +19,6 @@ interface CampaignComparisonChartProps {
     data: ComparisonData | null;
 }
 
-// --- MODIFIED: Metrics to compare now use the keys from the 'Statistics' object ---
-// We can now compare a much richer set of 8 metrics.
 const metricsToCompare = [
     { key: 'clicks', label: 'Clicks' },
     { key: 'impressions', label: 'Impressions' },
@@ -34,13 +31,10 @@ const metricsToCompare = [
 ];
 
 const CampaignComparisonChart: React.FC<CampaignComparisonChartProps> = ({ data }) => {
-    // This initial state message is now handled by the parent component's logic.
-    // This component will only render when valid data is passed to it.
     if (!data || !data.campaign1 || !data.campaign2) {
-        // This is a fallback and shouldn't typically be seen if the parent logic is correct.
         return (
-            <div className="p-4 text-center text-gray-500 bg-gray-50 rounded-lg h-[400px] flex items-center justify-center">
-                <p>Comparison data is unavailable.</p>
+            <div className="p-4 text-center text-slate-400 h-[400px] flex items-center justify-center">
+                <p>Select two campaigns from the list and click "Compare Selected" to see their performance side-by-side.</p>
             </div>
         );
     }
@@ -49,26 +43,25 @@ const CampaignComparisonChart: React.FC<CampaignComparisonChartProps> = ({ data 
 
     const chartLabels = metricsToCompare.map(metric => metric.label);
     
-    // --- MODIFIED: Data extraction is simpler, directly accessing properties from the Statistics object ---
     const campaign1DataValues = metricsToCompare.map(metric => campaign1[metric.key as keyof typeof campaign1]);
     const campaign2DataValues = metricsToCompare.map(metric => campaign2[metric.key as keyof typeof campaign2]);
 
-    // --- Chart Configurations (styling is the same, but data source is updated) ---
+    // --- MODIFIED: Chart configurations updated for dark theme ---
     const barChartData: ChartData<'bar'> = {
         labels: chartLabels,
         datasets: [
             {
                 label: campaign1Name,
                 data: campaign1DataValues,
-                backgroundColor: 'rgba(79, 70, 229, 0.7)',
-                borderColor: 'rgb(79, 70, 229)',
+                backgroundColor: 'rgba(129, 140, 248, 0.7)',
+                borderColor: 'rgb(129, 140, 248)',
                 borderWidth: 1, borderRadius: 4,
             },
             {
                 label: campaign2Name,
                 data: campaign2DataValues,
-                backgroundColor: 'rgba(34, 197, 94, 0.7)', // Changed to green for better contrast
-                borderColor: 'rgb(34, 197, 94)',
+                backgroundColor: 'rgba(52, 211, 153, 0.7)',
+                borderColor: 'rgb(52, 211, 153)',
                 borderWidth: 1, borderRadius: 4,
             },
         ],
@@ -77,13 +70,22 @@ const CampaignComparisonChart: React.FC<CampaignComparisonChartProps> = ({ data 
     const barChartOptions: ChartOptions<'bar'> = {
         responsive: true, maintainAspectRatio: false, indexAxis: 'y' as const,
         scales: {
-            x: { beginAtZero: true, grid: { color: 'rgba(200, 200, 200, 0.1)' } },
-            y: { grid: { display: false } },
+            x: { 
+                beginAtZero: true, 
+                grid: { color: 'rgba(100, 116, 139, 0.2)' },
+                ticks: { color: '#94a3b8' } // slate-400
+            },
+            y: { 
+                grid: { display: false },
+                ticks: { color: '#cbd5e1' } // slate-300
+            },
         },
         plugins: {
-            legend: { position: 'top' as const },
-            // --- FIXED: font.weight is now a number ---
-            title: { display: true, text: `Metric Comparison`, font: { size: 16, weight: 600 } },
+            legend: { 
+                position: 'top' as const,
+                labels: { color: '#cbd5e1' } // slate-300
+            },
+            title: { display: true, text: `Metric Comparison`, font: { size: 16, weight: 600 }, color: '#f1f5f9' }, // slate-100
         },
     };
 
@@ -93,15 +95,23 @@ const CampaignComparisonChart: React.FC<CampaignComparisonChartProps> = ({ data 
             {
                 label: campaign1Name,
                 data: campaign1DataValues,
-                backgroundColor: 'rgba(79, 70, 229, 0.3)',
-                borderColor: 'rgb(79, 70, 229)',
+                backgroundColor: 'rgba(129, 140, 248, 0.3)',
+                borderColor: 'rgb(129, 140, 248)',
+                pointBackgroundColor: 'rgb(129, 140, 248)',
+                pointBorderColor: '#fff',
+                pointHoverBackgroundColor: '#fff',
+                pointHoverBorderColor: 'rgb(129, 140, 248)',
                 borderWidth: 2,
             },
             {
                 label: campaign2Name,
                 data: campaign2DataValues,
-                backgroundColor: 'rgba(34, 197, 94, 0.3)',
-                borderColor: 'rgb(34, 197, 94)',
+                backgroundColor: 'rgba(52, 211, 153, 0.3)',
+                borderColor: 'rgb(52, 211, 153)',
+                pointBackgroundColor: 'rgb(52, 211, 153)',
+                pointBorderColor: '#fff',
+                pointHoverBackgroundColor: '#fff',
+                pointHoverBorderColor: 'rgb(52, 211, 153)',
                 borderWidth: 2,
             },
         ],
@@ -109,22 +119,33 @@ const CampaignComparisonChart: React.FC<CampaignComparisonChartProps> = ({ data 
 
     const radarChartOptions: ChartOptions<'radar'> = {
         responsive: true, maintainAspectRatio: false,
-        scales: { r: { beginAtZero: true, pointLabels: { font: { size: 11 } }, ticks: { display: false } } },
+        scales: { 
+            r: { 
+                beginAtZero: true, 
+                pointLabels: { font: { size: 11 }, color: '#cbd5e1' }, // slate-300
+                ticks: { display: false },
+                grid: { color: 'rgba(100, 116, 139, 0.2)' }, // Slate 500 with opacity
+                angleLines: { color: 'rgba(100, 116, 139, 0.2)' } // Slate 500 with opacity
+            } 
+        },
         plugins: {
-            legend: { position: 'top' as const },
-            // --- FIXED: font.weight is now a number ---
-            title: { display: true, text: `Performance Profile`, font: { size: 16, weight: 600 } },
+            legend: { 
+                position: 'top' as const,
+                labels: { color: '#cbd5e1' } // slate-300
+            },
+            title: { display: true, text: `Performance Profile`, font: { size: 16, weight: 600 }, color: '#f1f5f9' }, // slate-100
         },
     };
 
     return (
-        <div className="space-y-8">
-            <div className="bg-white p-4 sm:p-6 rounded-lg shadow-md h-[450px] md:h-[500px]">
-                <h3 className="text-lg font-semibold text-gray-800 text-center mb-4">Side-by-Side Performance</h3>
+        // --- THIS IS THE FIX: Increased the vertical spacing between the two charts ---
+        <div className="space-y-16">
+            <div className="h-[450px] md:h-[500px]">
+                <h3 className="text-lg font-semibold text-slate-200 text-center mb-4">Side-by-Side Performance</h3>
                 <Bar options={barChartOptions} data={barChartData} />
             </div>
-            <div className="bg-white p-4 sm:p-6 rounded-lg shadow-md h-[400px] md:h-[450px]">
-                <h3 className="text-lg font-semibold text-gray-800 text-center mb-4">Strength & Weakness Radar</h3>
+            <div className="h-[400px] md:h-[450px]">
+                <h3 className="text-lg font-semibold text-slate-200 text-center mb-4">Strength & Weakness Radar</h3>
                 <Radar data={radarChartData} options={radarChartOptions} />
             </div>
         </div>

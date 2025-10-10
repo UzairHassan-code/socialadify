@@ -158,3 +158,12 @@ class PasswordResetConfirm(BaseModel):
     def check_new_password_complexity(cls, value: str) -> str:
         return validate_password_complexity(value)
 
+# --- NEW: Schema for the change password endpoint ---
+class PasswordChange(BaseModel):
+    current_password: str
+    new_password: str
+
+
+    # --- NEW: Schema for the delete account endpoint ---
+class DeleteAccountRequest(BaseModel):
+    password: str

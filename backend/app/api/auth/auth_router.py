@@ -12,7 +12,9 @@ from fastapi.security import OAuth2PasswordRequestForm
 
 from app.schemas.user import (
     UserCreate, UserPublic, Token, UserInDB, UserUpdate, 
-    PasswordResetRequest, PasswordResetConfirm
+    PasswordResetRequest, PasswordResetConfirm,
+    # --- NEW: Import the model for the change password endpoint ---
+    PasswordChange, DeleteAccountRequest
 )
 from app.crud import user as user_service
 from app.core.email_utils import send_password_reset_email
@@ -50,6 +52,29 @@ async def login_for_access_token(form_data: Annotated[OAuth2PasswordRequestForm,
 @router.get("/users/me", response_model=UserPublic)
 async def read_users_me(current_user: CurrentUserDependency):
     return UserPublic.from_user_in_db(current_user)
+
+
+# --- NEW: The Missing Change Password Endpoint ---
+@router.post("/users/me/change-password")
+async def change_current_user_password(
+    password_data: PasswordChange,
+    current_user: CurrentUserDependency,
+    db: DbDependency
+):
+    """
+    Allows an authenticated user to change their own password.
+    """
+    # 1. Authenticate the user with their current password
+    user = await user_service.authenticate_user(db, email=current_user.email, password=password_data.current_password)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Incorrect current password")
+
+    # 2. If authentication is successful, update to the new password
+    success = await user_service.update_user_password(db, user=current_user, new_password=password_data.new_password)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to update password.")
+    
+    return {"message": "Password updated successfully"}
 
 
 @router.post("/forgot-password")
@@ -90,12 +115,9 @@ async def reset_password_endpoint(
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found.")
 
-    # --- THIS IS THE FIX ---
-    # Called the correct function 'update_user_password' and passed the full 'user' object.
     success = await user_service.update_user_password(db, user=user, new_password=request.new_password)
     if not success:
         raise HTTPException(status_code=500, detail="Failed to update password in the database.")
-    # --- END OF FIX ---
     
     return {"message": "Your password has been reset successfully."}
 
@@ -157,3 +179,27 @@ async def upload_profile_picture(
         raise HTTPException(status_code=500, detail="Could not update profile picture information.")
     return UserPublic.from_user_in_db(updated_user_db)
 
+# --- NEW: The Missing Delete Account Endpoint ---
+@router.post("/users/me/delete-account")
+async def delete_current_user_account(
+    delete_data: DeleteAccountRequest,
+    current_user: CurrentUserDependency,
+    db: DbDependency
+):
+    """
+    Allows an authenticated user to permanently delete their own account.
+    """
+    # The delete_user function in crud/user.py handles password verification
+    success = await user_service.delete_user(
+        db, 
+        user=current_user, 
+        current_password_to_verify=delete_data.password
+    )
+    
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Incorrect password. Account not deleted."
+        )
+    
+    return {"message": "Account deleted successfully."}

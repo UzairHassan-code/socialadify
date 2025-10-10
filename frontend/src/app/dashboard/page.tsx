@@ -12,56 +12,38 @@ import {
     getGoogleCampaigns, GoogleCampaign, getGoogleCampaignPerformance, PerformanceData,
     getAiSuggestionForCampaign, AISuggestion, Statistics
 } from '../../services/insightsService';
-import Link from 'next/link';
 
-// This interface is used by CampaignList
+// Interfaces (Unchanged)
 export interface UnifiedCampaign {
-    id: string;
-    name: string;
-    status: string;
-    platform: 'Google';
-    clicks: number;
-    impressions: number;
-    ctr: number;
-    cost: number;
-    cpc: number;
+    id: string; name: string; status: string; platform: 'Google';
+    clicks: number; impressions: number; ctr: number; cost: number; cpc: number;
 }
-
-// This interface is exported so CampaignComparisonChart can use it
 export interface ComparisonData {
-    campaign1: Statistics | null;
-    campaign2: Statistics | null;
-    campaign1Name: string;
-    campaign2Name: string;
+    campaign1: Statistics | null; campaign2: Statistics | null;
+    campaign1Name: string; campaign2Name: string;
 }
 
 export default function DashboardPage() {
     const { user, token, isAuthReady } = useAuth();
 
-    // State for the list of campaigns
+    // All state management logic remains the same
     const [campaigns, setCampaigns] = useState<UnifiedCampaign[]>([]);
     const [isLoadingCampaigns, setIsLoadingCampaigns] = useState(true);
     const [campaignsError, setCampaignsError] = useState<string | null>(null);
-
-    // State for single-campaign view
     const [selectedCampaign, setSelectedCampaign] = useState<UnifiedCampaign | null>(null);
     const [performanceData, setPerformanceData] = useState<PerformanceData | null>(null);
     const [isPerformanceLoading, setIsPerformanceLoading] = useState(false);
     const [performanceError, setPerformanceError] = useState<string | null>(null);
-
-    // State for multi-campaign comparison view
     const [comparisonIds, setComparisonIds] = useState<string[]>([]);
     const [comparisonData, setComparisonData] = useState<ComparisonData | null>(null);
     const [isComparing, setIsComparing] = useState(false);
     const [isComparisonLoading, setIsComparisonLoading] = useState(false);
-
-    // State for AI Suggestion Modal
     const [isSuggestionModalOpen, setIsSuggestionModalOpen] = useState(false);
     const [suggestionData, setSuggestionData] = useState<AISuggestion | null>(null);
     const [isSuggestionLoading, setIsSuggestionLoading] = useState(false);
     const [suggestionError, setSuggestionError] = useState<string | null>(null);
     
-    // --- Data Fetching Effects ---
+    // All data fetching and event handlers remain the same
     useEffect(() => {
         const fetchCampaignList = async () => {
             if (!token || !user) {
@@ -110,16 +92,12 @@ export default function DashboardPage() {
         fetchPerformanceData();
     }, [selectedCampaign, token, isComparing]);
 
-    // --- Event Handlers ---
     const handleCampaignSelection = (campaignId: string) => {
         if (isComparing) {
             setComparisonIds(prev => {
                 const newSet = new Set(prev);
-                if (newSet.has(campaignId)) {
-                    newSet.delete(campaignId);
-                } else if (newSet.size < 2) {
-                    newSet.add(campaignId);
-                }
+                if (newSet.has(campaignId)) { newSet.delete(campaignId); } 
+                else if (newSet.size < 2) { newSet.add(campaignId); }
                 return Array.from(newSet);
             });
         } else {
@@ -140,10 +118,8 @@ export default function DashboardPage() {
             const name1 = campaigns.find(c => c.id === comparisonIds[0])?.name || 'Campaign 1';
             const name2 = campaigns.find(c => c.id === comparisonIds[1])?.name || 'Campaign 2';
             setComparisonData({
-                campaign1: data1.statistics,
-                campaign2: data2.statistics,
-                campaign1Name: name1,
-                campaign2Name: name2,
+                campaign1: data1.statistics, campaign2: data2.statistics,
+                campaign1Name: name1, campaign2Name: name2,
             });
         } catch (err) {
             console.error("Failed to fetch comparison data:", err);
@@ -156,8 +132,7 @@ export default function DashboardPage() {
         if (!selectedCampaign || !token) return;
         setIsSuggestionModalOpen(true);
         setIsSuggestionLoading(true);
-        setSuggestionError(null);
-        setSuggestionData(null);
+        setSuggestionError(null); setSuggestionData(null);
         try {
             const data = await getAiSuggestionForCampaign(token, selectedCampaign.id);
             setSuggestionData(data);
@@ -175,13 +150,13 @@ export default function DashboardPage() {
         setComparisonData(null);
     };
 
-    // --- Render Logic ---
+    // --- Render Logic (Styling changes applied here) ---
     const renderMainContent = () => {
         if (isComparing) {
             return (
-                <section className="bg-white p-4 md:p-6 rounded-xl shadow-lg">
+                <section className="bg-slate-800/50 backdrop-blur-sm border border-slate-700 p-4 md:p-6 rounded-2xl shadow-2xl">
                     {isComparisonLoading ? (
-                         <div className="text-center p-10 h-[500px] flex items-center justify-center"><p>Loading comparison data...</p></div>
+                         <div className="text-center p-10 h-[500px] flex items-center justify-center text-slate-300"><p>Loading comparison data...</p></div>
                     ) : (
                          <CampaignComparisonChart data={comparisonData} />
                     )}
@@ -190,20 +165,20 @@ export default function DashboardPage() {
         }
         return (
             <>
-                <section className="bg-white p-4 md:p-6 rounded-xl shadow-lg">
+                <section className="bg-slate-800/50 backdrop-blur-sm border border-slate-700 p-4 md:p-6 rounded-2xl shadow-2xl">
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4">
-                        <h3 className="text-xl font-semibold text-gray-800">
+                        <h3 className="text-xl font-semibold text-slate-100">
                            🚀 {selectedCampaign ? `Trends: ${selectedCampaign.name}` : 'Select a Campaign'}
                         </h3>
                         {selectedCampaign && (
-                            <button onClick={handleGenerateSuggestion} disabled={isSuggestionLoading} className="mt-3 sm:mt-0 px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:bg-indigo-300 flex items-center">
+                            <button onClick={handleGenerateSuggestion} disabled={isSuggestionLoading} className="mt-3 sm:mt-0 px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:bg-indigo-400 flex items-center transition-colors">
                                 Get AI Suggestion
                             </button>
                         )}
                     </div>
                     <TrendsChart data={performanceData?.trends || []} isLoading={isPerformanceLoading} error={performanceError}/>
                 </section>
-                <section className="bg-white p-4 md:p-6 rounded-xl shadow-lg">
+                <section className="bg-slate-800/50 backdrop-blur-sm border border-slate-700 p-4 md:p-6 rounded-2xl shadow-2xl">
                     <OverallStats data={performanceData?.statistics || null} title="Campaign Statistics" isLoading={isPerformanceLoading} />
                 </section>
             </>
@@ -211,17 +186,17 @@ export default function DashboardPage() {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50 to-purple-50 p-4 md:p-6 lg:p-8">
+        // --- THIS IS THE FIX: The outer div no longer has a background color, allowing the layout's background to show through ---
+        <div>
             <header className="mb-6 md:mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center">
-                <h1 className="text-2xl md:text-3xl font-bold text-slate-800">Ad Insights Dashboard</h1>
-                {/* --- MODIFIED: "Compare Selected" button is now here and "Back to Account" is removed --- */}
+                <h1 className="text-2xl md:text-3xl font-bold text-slate-100">Ad Insights Dashboard</h1>
                 <div className="mt-2 sm:mt-0 flex items-center space-x-3">
                     <button 
                         onClick={toggleComparisonMode} 
                         className={`px-4 py-2 text-sm font-semibold rounded-lg transition-colors ${
                             isComparing 
-                                ? 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200' 
-                                : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
+                                ? 'bg-indigo-500 text-white hover:bg-indigo-600' 
+                                : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
                         }`}
                     >
                         {isComparing ? 'Exit Comparison' : 'Compare Campaigns'}
@@ -230,7 +205,7 @@ export default function DashboardPage() {
                         <button 
                             onClick={handleStartComparison} 
                             disabled={comparisonIds.length !== 2 || isComparisonLoading} 
-                            className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:bg-indigo-300 disabled:cursor-not-allowed transition-colors"
+                            className="px-4 py-2 text-sm font-semibold text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:bg-green-400 disabled:cursor-not-allowed transition-colors"
                         >
                             {isComparisonLoading ? 'Loading...' : `Compare ${comparisonIds.length}/2 Selected`}
                         </button>
@@ -249,7 +224,6 @@ export default function DashboardPage() {
                         comparisonIds={comparisonIds}
                         selectedCampaignId={selectedCampaign?.id || null}
                     />
-                    {/* --- MODIFIED: The button group has been removed from here --- */}
                 </aside>
             </div>
             <SuggestionModal
