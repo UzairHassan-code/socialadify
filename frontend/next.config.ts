@@ -5,14 +5,18 @@ import { Configuration } from 'webpack';
 /** @type {import('next').NextConfig} */
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  
+  // This configuration is necessary to allow the Next.js Image component
+  // to load images from your external backend server.
   images: {
     remotePatterns: [
       {
         protocol: 'http',
         hostname: 'localhost',
         port: '8000',
-        pathname: '/static/**',
+        pathname: '/static/**', // Allows any image path under /static/
       },
+      // This pattern is for placeholder images, which is good practice.
       {
         protocol: 'https',
         hostname: 'placehold.co',
@@ -22,10 +26,12 @@ const nextConfig: NextConfig = {
     ],
   },
   
+  // This webpack configuration is essential for packages that have
+  // server-side dependencies (like 'canvas') to work correctly in a client-side environment.
   webpack: (config: Configuration, { isServer }: { isServer: boolean }) => {
     if (!isServer) {
-      // *** THIS IS THE FIX ***
-      // We ensure config.externals is an array before trying to push to it.
+      // This tells Next.js not to bundle the 'canvas' library on the client-side,
+      // preventing potential browser-related errors.
       if (!config.externals) {
         config.externals = [];
       }
@@ -36,3 +42,4 @@ const nextConfig: NextConfig = {
 };
 
 export default nextConfig;
+

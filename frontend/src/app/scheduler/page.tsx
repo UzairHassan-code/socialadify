@@ -1,3 +1,5 @@
+// D:\socialadify\frontend\src\app\scheduler\page.tsx
+
 'use client';
 
 import React, { useState, useEffect, useCallback, ChangeEvent, FormEvent } from 'react';
@@ -48,12 +50,23 @@ const DeleteIcon = ({ className = "w-4 h-4" }: { className?: string }) => ( <svg
 const SparklesIcon = ({ className = "w-4 h-4" }: { className?: string }) => ( <svg className={className} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L1.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.25 12L17 13.75M17 13.75L15.75 12M17 13.75L18.25 15M15.75 12L17 10.25" /></svg> );
 const ImportIcon = ({ className = "w-4 h-4" }: { className?: string }) => ( <svg className={className} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m.75 12l3 3m0 0l3-3m-3 3v-6m-1.5-9H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg> );
 
-const API_BASE_URL_STATIC = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
+const API_BASE_URL_STATIC = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
+const formatToLocalDateTimeString = (date: Date): string => {
+    const pad = (num: number) => num.toString().padStart(2, '0');
+    
+    const year = date.getFullYear();
+    const month = pad(date.getMonth() + 1);
+    const day = pad(date.getDate());
+    const hours = pad(date.getHours());
+    const minutes = pad(date.getMinutes());
+    
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+};
 
 export default function SchedulerPage() {
     const { token, isAuthReady, isAuthenticated } = useAuth();
 
-    // --- Form State ---
     const [caption, setCaption] = useState('');
     const [imageFile, setImageFile] = useState<File | null>(null);
     const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
@@ -61,7 +74,6 @@ export default function SchedulerPage() {
     const [targetPlatform, setTargetPlatform] = useState('');
     const [aiReasoning, setAiReasoning] = useState<string | null>(null);
     
-    // --- Page State ---
     const [scheduledPosts, setScheduledPosts] = useState<ScheduledPost[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [isFetchingPosts, setIsFetchingPosts] = useState(true);
@@ -155,7 +167,21 @@ export default function SchedulerPage() {
                 target_platform: targetPlatform,
                 is_boosted: false
             });
-            setScheduledDateTime(response.suggested_time_utc);
+
+            // --- THIS IS THE FIX ---
+            // 1. Append 'Z' to the string to explicitly mark it as UTC.
+            const utcDateString = response.suggested_time_utc + 'Z';
+            
+            // 2. Create a Date object. JS will now correctly parse it as UTC and `getHours()` will return the local hour.
+            const localDate = new Date(utcDateString);
+            
+            // 3. Format this local Date object into the string required by the input field.
+            const formattedLocalDateTime = formatToLocalDateTimeString(localDate);
+            
+            // 4. Set the state with the correctly formatted local time string.
+            setScheduledDateTime(formattedLocalDateTime);
+            // --- END OF FIX ---
+            
             setAiReasoning(response.reasoning || null);
 
             setTimeout(() => {

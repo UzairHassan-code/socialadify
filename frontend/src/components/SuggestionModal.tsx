@@ -92,17 +92,14 @@
            )}
 
            {error && !isLoading && (
-             <div className="p-4 text-sm text-red-700 bg-red-100 rounded-lg shadow" role="alert">
-               <p className="font-semibold">Error fetching suggestions:</p>
+             <div className="p-4 text-sm text-blue-700 bg-red-100 rounded-lg shadow" role="alert">
+               <p className="font-semibold">Suggestions Unavailable:</p>
                <p>{error}</p>
              </div>
            )}
 
            {!isLoading && !error && suggestionData && suggestionData.suggestion && (
              <div>
-               <p className="text-sm text-gray-500 mb-1">
-                 Suggestions for Ad ID: <span className="font-semibold text-indigo-600">{suggestionData.ad_id}</span>
-               </p>
                <div className="mt-4 p-4 bg-indigo-50 border border-indigo-200 rounded-lg max-h-60 overflow-y-auto">
                  {formatSuggestion(suggestionData.suggestion)}
                </div>

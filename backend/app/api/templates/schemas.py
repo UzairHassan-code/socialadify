@@ -1,6 +1,7 @@
 # D:/socialadify/backend/app/api/templates/schemas.py
+
 from pydantic import BaseModel, Field, computed_field
-from typing import List, Dict
+from typing import List, Dict, Union, Literal
 from bson import ObjectId
 from app.schemas.user import PyObjectId
 
@@ -9,23 +10,37 @@ class Position(BaseModel):
     x: int
     y: int
 
-class EditableField(BaseModel):
+# --- NEW: Specific model for Text fields ---
+class EditableTextField(BaseModel):
     key: str
     label: str
-    type: str = "text"
+    type: Literal["text"] = "text"
     position: Position
     font: str
     font_size: int
     color: str
     max_length: int = 100
 
-# --- Core Template Model for Database ---
+# --- NEW: Specific model for Image fields ---
+class EditableImageField(BaseModel):
+    key: str
+    label: str
+    type: Literal["image"] = "image"
+    position: Position
+    width: int
+    height: int
+
+# --- NEW: A Union type that can be either a text field or an image field ---
+EditableField = Union[EditableTextField, EditableImageField]
+
+# --- Core Template Model for Database (UPDATED) ---
 class TemplateInDB(BaseModel):
     id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
     name: str
     description: str
     base_image_path: str
     preview_image_path: str
+    # This field can now contain both text and image field definitions
     editable_fields: List[EditableField]
 
     class Config:
@@ -33,17 +48,16 @@ class TemplateInDB(BaseModel):
         arbitrary_types_allowed = True
         json_encoders = {ObjectId: str}
 
-# --- Public model for API responses (listing templates) ---
+# --- Public model for API responses (UPDATED) ---
 class TemplatePublic(BaseModel):
-    # This field will hold the original _id from the database
     mongo_id: PyObjectId = Field(alias="_id")
     name: str
     description: str
     preview_image_path: str
     base_image_path: str
+    # This field now also supports both types
     editable_fields: List[EditableField] 
 
-    # --- THE FIX: Use a computed_field to explicitly create the 'id' string ---
     @computed_field
     @property
     def id(self) -> str:
@@ -54,11 +68,11 @@ class TemplatePublic(BaseModel):
         arbitrary_types_allowed = True
         json_encoders = {ObjectId: str, PyObjectId: str}
 
-# --- Schemas for the new generation endpoint ---
-class TemplateGenerationRequest(BaseModel):
-    """ The user's input for the editable fields """
-    field_values: Dict[str, str]
+# --- REMOVED: This is no longer needed as we'll use Form data ---
+# class TemplateGenerationRequest(BaseModel):
+#     field_values: Dict[str, str]
 
+# --- This schema remains the same ---
 class TemplateGenerationResponse(BaseModel):
     """ The response containing the URL of the final image """
     generated_image_url: str

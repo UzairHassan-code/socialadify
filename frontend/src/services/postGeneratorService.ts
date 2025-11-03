@@ -24,17 +24,30 @@ export interface SavePostPayload {
     original_request: PostGenerationPayload;
 }
 
-// --- Types for Template Feature ---
-export interface EditableField {
+// Define specific types for each kind of editable field
+export interface EditableTextField {
     key: string;
     label: string;
-    type: string;
+    type: 'text'; // Discriminated union key
     position: { x: number; y: number };
     font: string;
     font_size: number;
     color: string;
     max_length: number;
 }
+
+export interface EditableImageField {
+    key: string;
+    label: string;
+    type: 'image'; // Discriminated union key
+    position: { x: number; y: number };
+    width: number;
+    height: number;
+}
+
+// The EditableField is a union of the two specific types
+export type EditableField = EditableTextField | EditableImageField;
+
 
 export interface Template {
     id: string;
@@ -121,18 +134,19 @@ export async function getTemplates(token: string): Promise<Template[]> {
     return data;
 }
 
+// --- UPDATED: generateFromTemplate now accepts FormData ---
 export async function generateFromTemplate(
     token: string,
     templateId: string,
-    fieldValues: Record<string, string>
+    formData: FormData // Changed from Record<string, string> to FormData
 ): Promise<{ generated_image_url: string }> {
     const response = await fetch(`${API_BASE_URL}/templates/${templateId}/generate`, {
         method: 'POST',
         headers: {
-            'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`,
+            // NOTE: Do NOT set 'Content-Type'. The browser sets it automatically for FormData.
         },
-        body: JSON.stringify({ field_values: fieldValues }),
+        body: formData,
     });
     if (!response.ok) {
         return handleApiError(response, 'Failed to generate image from template.');

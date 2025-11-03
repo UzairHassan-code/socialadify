@@ -15,9 +15,8 @@ from bson import ObjectId
 from app.schemas.user import UserInDB, PyObjectId
 from app.core.security import get_current_active_user
 from app.db.session import get_database
-from app.services import gemini_service # Import the new Gemini service
-# --- THIS IS THE FIX ---
-# Removed the unused 'ErrorResponse' import
+# --- This import remains the same, but the function it calls is now the new hybrid model ---
+from app.services import gemini_service 
 from app.api.scheduling.schemas import ( 
     ScheduledPostCreate, ScheduledPostPublic, ScheduledPostUpdate,
     ScheduledPostInDB,AISuggestionRequest, AISuggestionResponse,
@@ -35,7 +34,8 @@ SCHEDULED_POST_IMAGES_DIR.mkdir(parents=True, exist_ok=True)
 DbDependency = Annotated[AsyncIOMotorDatabase, Depends(get_database)]
 CurrentUserDependency = Annotated[UserInDB, Depends(get_current_active_user)]
 
-# --- NEW AI SUGGESTION ENDPOINT ---
+# --- UPDATED AI SUGGESTION ENDPOINT ---
+# This is the new version of the endpoint, replacing the old one.
 @router.post(
     "/suggestion",
     response_model=AISuggestionResponse,
@@ -46,15 +46,21 @@ async def get_ai_time_suggestion(
     current_user: CurrentUserDependency
 ):
     logger.info(f"User {current_user.email} requesting AI time suggestion.")
+    
+    # The timezone for the Pakistani market, as required by the new model service.
+    user_timezone = "Asia/Karachi"
+    
     try:
-        # This line calls the Gemini service and gets the data
+        # --- THE FIX ---
+        # This now calls the get_optimal_post_time function from our updated service.
+        # This function contains the custom model logic and a Gemini fallback.
         suggestion_data = await gemini_service.get_optimal_post_time(
             caption=request.caption,
             platform=request.target_platform,
-            is_boosted=request.is_boosted
+            is_boosted=request.is_boosted, # This is kept for compatibility
+            user_timezone=user_timezone
         )
         
-        # This line correctly uses the data within the same 'try' block
         return AISuggestionResponse(
             suggested_time_utc=suggestion_data['suggested_time_utc'],
             reasoning=suggestion_data['reasoning']
@@ -66,6 +72,8 @@ async def get_ai_time_suggestion(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to get a suggestion from the AI model. Please try again later."
         )
+
+# --- (The rest of the file remains completely unchanged) ---
 
 def _to_scheduled_post_public(post_db: ScheduledPostInDB) -> ScheduledPostPublic:
     """
@@ -81,7 +89,6 @@ def _to_scheduled_post_public(post_db: ScheduledPostInDB) -> ScheduledPostPublic
         created_at=post_db.created_at,
         updated_at=post_db.updated_at,
         target_platform=post_db.target_platform,
-        # Add the new automation fields to the public response
         auto_post=post_db.auto_post,
         auto_boost=post_db.auto_boost,
         boost_budget=post_db.boost_budget,
@@ -177,18 +184,6 @@ async def list_user_scheduled_posts(
     logger.info(f"Fetching scheduled posts for user: {current_user.email}")
     user_object_id = ObjectId(str(current_user.id))
     posts_db = await scheduler_crud.get_scheduled_posts_by_user(db, user_id=user_object_id, skip=skip, limit=limit)
-
-    # --- START DEBUGGING LOGS ---
-    if posts_db:
-        # 1. Log the raw datetime object from the first post
-        first_post_datetime_obj = posts_db[0].scheduled_at
-        logger.info(f"DEBUG: Raw datetime object from DB: {first_post_datetime_obj}")
-
-        # 2. Log how Python converts this object to an ISO string
-        # This will tell us if the 'Z' is present before FastAPI/Pydantic serialization
-        logger.info(f"DEBUG: Python's .isoformat() output: {first_post_datetime_obj.isoformat()}")
-    # --- END DEBUGGING LOGS ---
-
     return [_to_scheduled_post_public(post) for post in posts_db]
 
 
@@ -282,3 +277,4 @@ async def delete_existing_scheduled_post(
         background_tasks.add_task(delete_image_file, file_path_to_delete)
     
     return None
+

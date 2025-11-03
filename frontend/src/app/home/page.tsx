@@ -1,4 +1,3 @@
-// D:\socialadify\frontend\src\app\home\page.tsx
 'use client';
 
 import Link from 'next/link';
@@ -53,6 +52,16 @@ const PostGenerationIcon = () => (
         </svg>
     </IconWrapper>
 );
+
+// --- NEW ICON ---
+const AdPlacementIcon = () => (
+    <IconWrapper colorClass="bg-indigo-100 group-hover:bg-indigo-200" iconColorClass="text-indigo-600 group-hover:text-indigo-700">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3v11.25A2.25 2.25 0 006 16.5h12A2.25 2.25 0 0020.25 14.25V3m-3.75 0h-1.5m-1.5 0h-1.5m-1.5 0H9m-1.5 0H6m16.5 6.75h-1.5m-1.5 0h-1.5m-1.5 0h-1.5m-1.5 0H6m16.5 3h-1.5m-1.5 0h-1.5m-1.5 0h-1.5m-1.5 0H6m16.5 3h-1.5m-1.5 0h-1.5m-1.5 0h-1.5m-1.5 0H6M3.75 6.75h16.5M3.75 10.5h16.5M6 16.5v3m12-3v3M10.5 16.5v3" />
+        </svg>
+    </IconWrapper>
+);
+// --- END NEW ICON ---
 
 interface ModuleCardProps {
     title: string;
@@ -133,6 +142,17 @@ export default function HomePage() {
                     icon={<InsightIcon />}
                     actionText="View Dashboard"
                 />
+                
+                {/* --- NEW MODULE CARD --- */}
+                <ModuleCard
+                    title="AI Ad Placement"
+                    description="Create, target, and get AI recommendations for your Google & Meta ad campaigns."
+                    link="/ad-creator"
+                    icon={<AdPlacementIcon />}
+                    actionText="Create Ad"
+                />
+                {/* --- END NEW MODULE CARD --- */}
+
                 <ModuleCard
                     title="Caption Generation"
                     description="Generate engaging and effective ad captions with the power of AI. Save time and boost clicks."
@@ -167,3 +187,4 @@ export default function HomePage() {
         </div>
     );
 }
+

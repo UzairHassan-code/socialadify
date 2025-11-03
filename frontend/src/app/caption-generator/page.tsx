@@ -62,7 +62,7 @@ export default function CaptionGeneratorPage() {
         const file = event.target.files?.[0];
         setError(null); 
         if (file) {
-            if (file.size > 5 * 1024 * 1024) { 
+            if (file.size > 10 * 1024 * 1024) { 
                 setError("Image size should not exceed 5MB.");
                 setImageFile(null); setImagePreviewUrl(null);
                 return;
@@ -190,7 +190,7 @@ export default function CaptionGeneratorPage() {
                     <form onSubmit={handleGenerateCaptions} className="space-y-6">
                         {/* Image Upload */}
                         <div>
-                            <label htmlFor="imageUpload" className={labelBaseClass}>1. Upload Image (Optional)</label>
+                            <label htmlFor="imageUpload" className={labelBaseClass}>1. Upload Image </label>
                             <label htmlFor="imageUpload" className="mt-1 flex flex-col items-center justify-center w-full h-48 px-6 pt-5 pb-6 border-2 border-slate-600/80 border-dashed rounded-xl group hover:border-indigo-500 transition-colors bg-slate-700/30 cursor-pointer">
                                 {imagePreviewUrl ? (
                                     <div className="relative w-full h-full max-h-40">
@@ -200,7 +200,7 @@ export default function CaptionGeneratorPage() {
                                     <div className="space-y-2 text-center">
                                         <UploadIcon />
                                         <p className="text-xs text-slate-400">Click to upload or drag & drop</p>
-                                        <p className="text-xs text-slate-500">PNG, JPG, WEBP up to 5MB</p>
+                                        <p className="text-xs text-slate-500">PNG, JPG, WEBP</p>
                                     </div>
                                 )}
                             </label>

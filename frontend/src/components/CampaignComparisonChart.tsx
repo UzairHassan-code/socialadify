@@ -1,4 +1,5 @@
 // D:\socialadify\frontend\src\components\CampaignComparisonChart.tsx
+
 'use client';
 
 import React from 'react';
@@ -6,13 +7,14 @@ import { Bar, Radar } from 'react-chartjs-2';
 import {
     Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title,
     Tooltip, Legend, ChartOptions, ChartData, PointElement, LineElement,
-    RadialLinearScale, Filler
+    RadialLinearScale, Filler, LogarithmicScale
 } from 'chart.js';
 import { ComparisonData } from '@/app/dashboard/page';
 
 ChartJS.register(
     CategoryScale, LinearScale, BarElement, PointElement, LineElement,
-    RadialLinearScale, Title, Tooltip, Legend, Filler
+    RadialLinearScale, Title, Tooltip, Legend, Filler,
+    LogarithmicScale // --- FIX: Register the logarithmic scale
 );
 
 interface CampaignComparisonChartProps {
@@ -42,11 +44,10 @@ const CampaignComparisonChart: React.FC<CampaignComparisonChartProps> = ({ data 
     const { campaign1, campaign2, campaign1Name, campaign2Name } = data;
 
     const chartLabels = metricsToCompare.map(metric => metric.label);
-    
+
     const campaign1DataValues = metricsToCompare.map(metric => campaign1[metric.key as keyof typeof campaign1]);
     const campaign2DataValues = metricsToCompare.map(metric => campaign2[metric.key as keyof typeof campaign2]);
 
-    // --- MODIFIED: Chart configurations updated for dark theme ---
     const barChartData: ChartData<'bar'> = {
         labels: chartLabels,
         datasets: [
@@ -67,34 +68,66 @@ const CampaignComparisonChart: React.FC<CampaignComparisonChartProps> = ({ data 
         ],
     };
 
+    // --- FIX: Using a logarithmic scale for the bar chart's x-axis ---
     const barChartOptions: ChartOptions<'bar'> = {
         responsive: true, maintainAspectRatio: false, indexAxis: 'y' as const,
         scales: {
-            x: { 
-                beginAtZero: true, 
+            x: {
+                type: 'logarithmic', // This allows comparing vastly different numbers
                 grid: { color: 'rgba(100, 116, 139, 0.2)' },
-                ticks: { color: '#94a3b8' } // slate-400
+                ticks: {
+                    color: '#94a3b8', // slate-400
+                    // Callback to format labels for readability (e.g., 1K, 1M)
+                    callback: (value) => {
+                        const numValue = Number(value);
+                        if (numValue === 0) return "0";
+                        if (numValue >= 1000000) return `${(numValue / 1000000).toPrecision(2)}M`;
+                        if (numValue >= 1000) return `${(numValue / 1000).toPrecision(2)}K`;
+                        if (numValue < 1 && numValue > 0) return numValue.toFixed(2);
+                        return numValue.toLocaleString();
+                    }
+                }
             },
-            y: { 
+            y: {
                 grid: { display: false },
                 ticks: { color: '#cbd5e1' } // slate-300
             },
         },
         plugins: {
-            legend: { 
+            legend: {
                 position: 'top' as const,
                 labels: { color: '#cbd5e1' } // slate-300
             },
-            title: { display: true, text: `Metric Comparison`, font: { size: 16, weight: 600 }, color: '#f1f5f9' }, // slate-100
+            title: { display: true, text: `Metric Comparison`, font: { size: 16 }, color: '#f1f5f9' }, // slate-100
         },
     };
+
+    // --- FIX: Normalize data for the Radar chart to better compare profiles ---
+    const normalizedCampaign1Data: number[] = [];
+    const normalizedCampaign2Data: number[] = [];
+
+    for (let i = 0; i < metricsToCompare.length; i++) {
+        const val1 = campaign1DataValues[i];
+        const val2 = campaign2DataValues[i];
+        const maxVal = Math.max(val1, val2);
+
+        // Avoid division by zero; if max is 0, both normalized values are 0.
+        if (maxVal === 0) {
+            normalizedCampaign1Data.push(0);
+            normalizedCampaign2Data.push(0);
+        } else {
+            // Scale each value relative to the max for that metric (range 0 to 1)
+            normalizedCampaign1Data.push(val1 / maxVal);
+            normalizedCampaign2Data.push(val2 / maxVal);
+        }
+    }
 
     const radarChartData: ChartData<'radar'> = {
         labels: chartLabels,
         datasets: [
             {
                 label: campaign1Name,
-                data: campaign1DataValues,
+                data: normalizedCampaign1Data, // Use normalized data
                 backgroundColor: 'rgba(129, 140, 248, 0.3)',
                 borderColor: 'rgb(129, 140, 248)',
                 pointBackgroundColor: 'rgb(129, 140, 248)',
@@ -105,7 +138,7 @@ const CampaignComparisonChart: React.FC<CampaignComparisonChartProps> = ({ data 
             },
             {
                 label: campaign2Name,
-                data: campaign2DataValues,
+                data: normalizedCampaign2Data, // Use normalized data
                 backgroundColor: 'rgba(52, 211, 153, 0.3)',
                 borderColor: 'rgb(52, 211, 153)',
                 pointBackgroundColor: 'rgb(52, 211, 153)',
@@ -117,28 +150,34 @@ const CampaignComparisonChart: React.FC<CampaignComparisonChartProps> = ({ data 
         ],
     };
 
+    // --- FIX: Update radar options for the new normalized 0-1 scale ---
     const radarChartOptions: ChartOptions<'radar'> = {
         responsive: true, maintainAspectRatio: false,
-        scales: { 
-            r: { 
-                beginAtZero: true, 
+        scales: {
+            r: {
+                beginAtZero: true,
+                max: 1, // Set the max of the axis to 1
                 pointLabels: { font: { size: 11 }, color: '#cbd5e1' }, // slate-300
-                ticks: { display: false },
-                grid: { color: 'rgba(100, 116, 139, 0.2)' }, // Slate 500 with opacity
-                angleLines: { color: 'rgba(100, 116, 139, 0.2)' } // Slate 500 with opacity
-            } 
+                ticks: {
+                    display: true, // Show the scale
+                    stepSize: 0.25,
+                    backdropColor: 'transparent',
+                    color: '#94a3b8'
+                },
+                grid: { color: 'rgba(100, 116, 139, 0.2)' },
+                angleLines: { color: 'rgba(100, 116, 139, 0.2)' }
+            }
         },
         plugins: {
-            legend: { 
+            legend: {
                 position: 'top' as const,
-                labels: { color: '#cbd5e1' } // slate-300
+                labels: { color: '#cbd5e1' }
             },
-            title: { display: true, text: `Performance Profile`, font: { size: 16, weight: 600 }, color: '#f1f5f9' }, // slate-100
+            title: { display: true, text: `Performance Profile`, font: { size: 16 }, color: '#f1f5f9' },
         },
     };
 
     return (
-        // --- THIS IS THE FIX: Increased the vertical spacing between the two charts ---
         <div className="space-y-16">
             <div className="h-[450px] md:h-[500px]">
                 <h3 className="text-lg font-semibold text-slate-200 text-center mb-4">Side-by-Side Performance</h3>
@@ -153,4 +192,3 @@ const CampaignComparisonChart: React.FC<CampaignComparisonChartProps> = ({ data 
 };
 
 export default CampaignComparisonChart;
-
