@@ -1,3 +1,4 @@
+// D:\socialadify\frontend\src\components\AdCreatorForm.tsx
 'use client';
 
 import React, { useState, FormEvent, ChangeEvent } from 'react';
@@ -10,14 +11,13 @@ import {
     AdCreativeFormPayload, 
     GoogleAudience,
     AIPlatformSuggestionRequest
-} from '../services/adCreatorService'; 
+} from '@/services/adCreatorService'; // Use correct alias path
 
 // --- Icons ---
 const PlusIcon = ({ className = "w-4 h-4" }: { className?: string }) => ( <svg className={className} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg> );
 const TrashIcon = ({ className = "w-4 h-4" }: { className?: string }) => ( <svg className={className} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.927a2.25 2.25 0 01-2.244-2.077L5.09 5.93c-.3-.058-.6-.117-.9-.176M4.5 5.25a2.25 2.25 0 012.25-2.25h1.5A2.25 2.25 0 0112 5.25m-3 0h3.75" /></svg> );
 const WandIcon = ({ className = "w-5 h-5" }: { className?: string }) => ( <svg className={className} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L1.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.25 12L17 13.75M17 13.75L15.75 12M17 13.75L18.25 15M15.75 12L17 10.25" /></svg> );
 const LoadingSpinner = ({ className = "animate-spin h-5 w-5 text-white" }: {className?: string}) => ( <svg className={className} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>);
-// --- NEW ICON ---
 const ImageIcon = ({ className = "w-5 h-5" }: { className?: string }) => ( <svg className={className} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" /></svg> );
 
 // --- Default States ---
@@ -55,9 +55,11 @@ export const AdCreatorForm: React.FC<AdCreatorFormProps> = ({
     const [formState, setFormState] = useState(defaultAdCreative);
     const [productDescription, setProductDescription] = useState(''); // For AI suggestion
     
-    // --- NEW IMAGE STATE ---
-    const [imageFile, setImageFile] = useState<File | null>(null);
-    const [imagePreview, setImagePreview] = useState<string | null>(null);
+    // --- NEW: State for two images ---
+    const [imageFileSquare, setImageFileSquare] = useState<File | null>(null);
+    const [imagePreviewSquare, setImagePreviewSquare] = useState<string | null>(null);
+    const [imageFileLandscape, setImageFileLandscape] = useState<File | null>(null);
+    const [imagePreviewLandscape, setImagePreviewLandscape] = useState<string | null>(null);
     
     const [isGeneratingSuggestion, setIsGeneratingSuggestion] = useState(false);
     const [aiSuggestion, setAiSuggestion] = useState<string | null>(null);
@@ -102,26 +104,32 @@ export const AdCreatorForm: React.FC<AdCreatorFormProps> = ({
         handleAudienceChange('genders', newGenders);
     };
 
-    // --- NEW IMAGE HANDLER ---
-    const handleImageChange = (e: ChangeEvent<HTMLInputElement>) => {
+    // --- NEW: Two separate image handlers ---
+    const handleImageChangeSquare = (e: ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
-            if (file.size > 5 * 1024 * 1024) { // 5MB limit
-                setError("Image is too large. Please select an image under 5MB.");
-                return;
-            }
-            if (!file.type.startsWith("image/")) {
-                setError("Invalid file type. Please select an image.");
-                return;
-            }
-            
-            setImageFile(file);
+            // ... (add size/type validation if needed) ...
+            setImageFileSquare(file);
             const reader = new FileReader();
             reader.onloadend = () => {
-                setImagePreview(reader.result as string);
+                setImagePreviewSquare(reader.result as string);
             };
             reader.readAsDataURL(file);
-            setError(null); // Clear previous errors
+            setError(null);
+        }
+    };
+    
+    const handleImageChangeLandscape = (e: ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            // ... (add size/type validation if needed) ...
+            setImageFileLandscape(file);
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setImagePreviewLandscape(reader.result as string);
+            };
+            reader.readAsDataURL(file);
+            setError(null);
         }
     };
 
@@ -154,9 +162,9 @@ export const AdCreatorForm: React.FC<AdCreatorFormProps> = ({
         event.preventDefault();
         if (!token) return;
 
-        // --- NEW: Image Validation ---
-        if (!imageFile) {
-            setError("Please select an image for the ad.");
+        // --- NEW: Validate both images ---
+        if (!imageFileSquare || !imageFileLandscape) {
+            setError("Please select both a square (1:1) and landscape (1.91:1) image.");
             return;
         }
 
@@ -176,7 +184,8 @@ export const AdCreatorForm: React.FC<AdCreatorFormProps> = ({
             // Use the updated service function
             const newAd = await createAdCreative(token, {
                 ad_data,
-                image_file: imageFile
+                image_file_square: imageFileSquare,
+                image_file_landscape: imageFileLandscape
             });
             onDraftSaved(newAd); // Pass the new ad up to the parent
         } catch (err) {
@@ -245,34 +254,65 @@ export const AdCreatorForm: React.FC<AdCreatorFormProps> = ({
                     <input type="text" id="campaign_name" value={formState.campaign_name} onChange={e => handleFormChange('campaign_name', e.target.value)} className={inputClass} required />
                 </div>
                 
-                {/* --- NEW: Image Upload --- */}
-                <div>
-                    <label className={labelClass}>Ad Image*</label>
-                    <div className="mt-2 flex items-center gap-4">
-                        <div className="w-24 h-24 rounded-lg bg-slate-700/50 border border-slate-600 flex items-center justify-center overflow-hidden">
-                            {imagePreview ? (
-                                <Image src={imagePreview} alt="Ad preview" width={96} height={96} className="object-cover w-full h-full" />
-                            ) : (
-                                <ImageIcon className="w-10 h-10 text-slate-500" />
-                            )}
+                {/* --- NEW: Two Image Uploads --- */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Square Image */}
+                    <div>
+                        <label className={labelClass}>Square Image (1:1)*</label>
+                        <div className="mt-2 flex items-center gap-4">
+                            <div className="w-24 h-24 rounded-lg bg-slate-700/50 border border-slate-600 flex items-center justify-center overflow-hidden">
+                                {imagePreviewSquare ? (
+                                    <Image src={imagePreviewSquare} alt="Square preview" width={96} height={96} className="object-cover w-full h-full" />
+                                ) : (
+                                    <ImageIcon className="w-10 h-10 text-slate-500" />
+                                )}
+                            </div>
+                            <label
+                                htmlFor="image-upload-square"
+                                className="relative cursor-pointer rounded-md bg-slate-700 px-3 py-2 text-sm font-semibold text-sky-400 shadow-sm hover:bg-slate-600 border border-slate-600"
+                            >
+                                <span>Change Image</span>
+                                <input
+                                    id="image-upload-square"
+                                    type="file"
+                                    className="sr-only"
+                                    accept="image/png, image/jpeg"
+                                    onChange={handleImageChangeSquare}
+                                />
+                            </label>
                         </div>
-                        <label
-                            htmlFor="image-upload"
-                            className="relative cursor-pointer rounded-md bg-slate-700 px-3 py-2 text-sm font-semibold text-sky-400 shadow-sm hover:bg-slate-600 border border-slate-600"
-                        >
-                            <span>Change Image</span>
-                            <input
-                                id="image-upload"
-                                name="image-upload"
-                                type="file"
-                                className="sr-only"
-                                accept="image/png, image/jpeg, image/webp"
-                                onChange={handleImageChange}
-                            />
-                        </label>
+                        <p className="text-xs text-slate-500 mt-1.5">PNG or JPG, 1:1 ratio.</p>
                     </div>
-                    <p className="text-xs text-slate-500 mt-1.5">PNG, JPG, WEBP up to 5MB.</p>
+                    
+                    {/* Landscape Image */}
+                    <div>
+                        <label className={labelClass}>Landscape Image (1.91:1)*</label>
+                        <div className="mt-2 flex items-center gap-4">
+                            <div className="w-24 h-24 rounded-lg bg-slate-700/50 border border-slate-600 flex items-center justify-center overflow-hidden">
+                                {imagePreviewLandscape ? (
+                                    <Image src={imagePreviewLandscape} alt="Landscape preview" width={96} height={96} className="object-cover w-full h-full" />
+                                ) : (
+                                    <ImageIcon className="w-10 h-10 text-slate-500" />
+                                )}
+                            </div>
+                            <label
+                                htmlFor="image-upload-landscape"
+                                className="relative cursor-pointer rounded-md bg-slate-700 px-3 py-2 text-sm font-semibold text-sky-400 shadow-sm hover:bg-slate-600 border border-slate-600"
+                            >
+                                <span>Change Image</span>
+                                <input
+                                    id="image-upload-landscape"
+                                    type="file"
+                                    className="sr-only"
+                                    accept="image/png, image/jpeg"
+                                    onChange={handleImageChangeLandscape}
+                                />
+                            </label>
+                        </div>
+                        <p className="text-xs text-slate-500 mt-1.5">PNG or JPG, 1.91:1 ratio.</p>
+                    </div>
                 </div>
+                {/* --- End Image Uploads --- */}
                 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     <div>
@@ -367,10 +407,10 @@ export const AdCreatorForm: React.FC<AdCreatorFormProps> = ({
 
                 {/* --- Submission --- */}
                 <div className="pt-4">
-                    <button type="submit" disabled={isSubmitting || !imageFile} className="w-full flex items-center justify-center gap-2 px-6 py-3 text-base font-semibold rounded-lg shadow-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 transition duration-150 ease-in-out bg-sky-600 hover:bg-sky-500 text-white disabled:opacity-50">
+                    <button type="submit" disabled={isSubmitting || !imageFileSquare || !imageFileLandscape} className="w-full flex items-center justify-center gap-2 px-6 py-3 text-base font-semibold rounded-lg shadow-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 transition duration-150 ease-in-out bg-sky-600 hover:bg-sky-500 text-white disabled:opacity-50">
                         {isSubmitting ? <LoadingSpinner /> : 'Save Ad Draft'}
                     </button>
-                    {!imageFile && !isSubmitting && <p className="text-xs text-center text-yellow-400 mt-2">Please select an image to save the draft.</p>}
+                    {(!imageFileSquare || !imageFileLandscape) && !isSubmitting && <p className="text-xs text-center text-yellow-400 mt-2">Please select both a square and landscape image to save.</p>}
                 </div>
             </div>
         </form>

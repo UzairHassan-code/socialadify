@@ -40,15 +40,16 @@ export interface AdCreativePayload {
     ad_goal: string;
     headline: string;
     body_text: string;
-    // image_url is no longer part of this payload, it's sent as a file
+    // image_urls are no longer part of this payload, they're sent as files
     platform: 'GOOGLE' | 'META';
     audience: GoogleAudience;
 }
 
-// --- NEW PAYLOAD FOR THE FORM ---
+// --- UPDATED PAYLOAD FOR THE FORM ---
 export interface AdCreativeFormPayload {
     ad_data: AdCreativePayload;
-    image_file: File;
+    image_file_square: File;
+    image_file_landscape: File;
 }
 // ---
 
@@ -59,7 +60,9 @@ export interface AdCreativePublic {
     ad_goal: string;
     headline: string;
     body_text: string;
-    image_url?: string | null;
+    // --- NEW: Add both image URLs ---
+    image_url_square?: string | null;
+    image_url_landscape?: string | null;
     platform: string;
     audience: GoogleAudience;
     status: 'DRAFT' | 'PUBLISHED' | 'FAILED';
@@ -105,7 +108,7 @@ export async function getAIPlatformSuggestion(
 
 /**
  * Creates a new Ad Creative draft.
- * --- UPDATED TO HANDLE FILE UPLOAD ---
+ * --- UPDATED TO HANDLE TWO FILE UPLOADS ---
  */
 export async function createAdCreative(
     token: string, 
@@ -115,11 +118,11 @@ export async function createAdCreative(
     // Create FormData
     const formData = new FormData();
     
-    // Append the image file
-    formData.append('image_file', payload.image_file);
+    // --- NEW: Append both image files ---
+    formData.append('image_file_square', payload.image_file_square);
+    formData.append('image_file_landscape', payload.image_file_landscape);
     
     // Append the rest of the ad data as a JSON string
-    // This matches the pattern in your schedulerService
     formData.append('ad_data_json', JSON.stringify(payload.ad_data));
 
     const response = await fetch(`${API_BASE_URL}/ads/`, {
@@ -172,11 +175,8 @@ export async function deleteAdCreative(token: string, adId: string): Promise<voi
 
 /**
  * Publishes a saved ad draft to the Google Ads API.
- * (This is the function we will build in the next major step)
  */
 export async function publishAdToGoogle(token: string, adId: string): Promise<AdCreativePublic> {
-    // This endpoint doesn't exist yet, but we'll create it.
-    // This is our "Step 6" from the original plan.
     const response = await fetch(`${API_BASE_URL}/ads/publish/google/${adId}`, {
         method: 'POST',
         headers: {

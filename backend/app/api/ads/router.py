@@ -1,5 +1,4 @@
 # D:\socialadify\backend\app\api\ads\router.py
-
 from fastapi import (
     APIRouter, Depends, HTTPException, status, 
     Query, Path as FastApiPath, UploadFile, File, Form, BackgroundTasks
@@ -78,7 +77,7 @@ async def get_platform_recommendation(
 
 # --- CRUD Endpoints ---
 
-# --- UPDATED TO HANDLE IMAGE UPLOAD (FormData) ---
+# --- UPDATED TO HANDLE TWO IMAGE UPLOADS (FormData) ---
 @router.post(
     "/",
     response_model=AdCreativePublic,
@@ -89,63 +88,78 @@ async def create_new_ad_draft(
     current_user: CurrentUserDependency,
     db: DbDependency,
     ad_data_json: str = Form(..., description="A JSON string of the AdCreativePayload"),
-    image_file: UploadFile = File(...)
+    image_file_square: UploadFile = File(..., description="Square 1:1 image"),
+    image_file_landscape: UploadFile = File(..., description="Landscape 1.91:1 image")
 ):
-    logger.info(f"User {current_user.email} creating new ad draft with image.")
+    logger.info(f"User {current_user.email} creating new ad draft with 2 images.")
 
-    # --- Image File Handling (from scheduler) ---
-    if not image_file.content_type or not image_file.content_type.startswith("image/"):
-        raise HTTPException(status_code=400, detail="Invalid file type. Only images are allowed.")
+    # --- Helper function to save a file ---
+    def save_image_file(image_file: UploadFile, suffix: str) -> Path:
+        if not image_file.content_type or not image_file.content_type.startswith("image/"):
+            raise HTTPException(status_code=400, detail=f"Invalid file type for {suffix} image. Only images are allowed.")
+        
+        file_extension = Path(image_file.filename).suffix.lower() if image_file.filename else ".jpg"
+        allowed_extensions = [".jpg", ".jpeg", ".png", ".webp"]
+        if file_extension not in allowed_extensions:
+            raise HTTPException(status_code=400, detail=f"Unsupported image extension for {suffix}: {file_extension}.")
+        
+        timestamp = int(time.time())
+        unique_filename = f"user_{str(current_user.id)}_time_{timestamp}_{suffix}{file_extension}"
+        file_path_on_disk = AD_CREATIVE_IMAGES_DIR / unique_filename
+        
+        try:
+            with open(file_path_on_disk, "wb") as buffer:
+                shutil.copyfileobj(image_file.file, buffer)
+            logger.info(f"Ad creative image ({suffix}) saved for user {current_user.email} to: {file_path_on_disk}")
+            return file_path_on_disk
+        except Exception as e:
+            logger.error(f"Failed to save ad creative image ({suffix}) for {current_user.email}: {e}", exc_info=True)
+            raise HTTPException(status_code=500, detail=f"Could not save image for ad creative ({suffix}).")
+        finally:
+            image_file.file.close()
 
-    file_extension = Path(image_file.filename).suffix.lower() if image_file.filename else ".jpg"
-    allowed_extensions = [".jpg", ".jpeg", ".png", ".webp"]
-    if file_extension not in allowed_extensions:
-        raise HTTPException(status_code=400, detail=f"Unsupported image extension: {file_extension}.")
-    
-    timestamp = int(time.time())
-    unique_filename = f"user_{str(current_user.id)}_time_{timestamp}{file_extension}"
-    file_path_on_disk = AD_CREATIVE_IMAGES_DIR / unique_filename
-    
+    # --- Save both images ---
+    file_path_square = None
+    file_path_landscape = None
     try:
-        with open(file_path_on_disk, "wb") as buffer:
-            shutil.copyfileobj(image_file.file, buffer)
-        logger.info(f"Ad creative image saved for user {current_user.email} to: {file_path_on_disk}")
-    except Exception as e:
-        logger.error(f"Failed to save ad creative image for {current_user.email}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Could not save image for ad creative.")
-    finally:
-        image_file.file.close()
+        file_path_square = save_image_file(image_file_square, "1x1")
+        file_path_landscape = save_image_file(image_file_landscape, "1.91x1")
+    except HTTPException as e:
+        # Clean up if one file saved but the other failed
+        if file_path_square and file_path_square.exists(): os.remove(file_path_square)
+        if file_path_landscape and file_path_landscape.exists(): os.remove(file_path_landscape)
+        raise e
 
-    image_url_path = f"/static/ad_creative_images/{unique_filename}"
-    # --- End Image File Handling ---
-
+    image_url_square_path = f"/static/ad_creative_images/{file_path_square.name}"
+    image_url_landscape_path = f"/static/ad_creative_images/{file_path_landscape.name}"
+    
+    # --- Parse JSON Data ---
     try:
-        # Parse the JSON string data
         ad_data_dict = json.loads(ad_data_json)
         ad_data = AdCreativePayload(**ad_data_dict)
     except Exception as e:
         logger.warning(f"Invalid JSON data for ad creative: {e}", exc_info=True)
-        # Delete the orphaned image
-        if file_path_on_disk.exists():
-            try: os.remove(file_path_on_disk)
-            except Exception as e_del: logger.error(f"Error deleting orphaned image {file_path_on_disk}: {e_del}")
+        # Delete the orphaned images
+        if file_path_square.exists(): os.remove(file_path_square)
+        if file_path_landscape.exists(): os.remove(file_path_landscape)
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Invalid ad data JSON: {e}")
 
+    # --- Create DB Entry ---
     try:
         user_object_id = UserPyObjectId(str(current_user.id))
         ad_db = await ad_crud.create_ad_creative(
             db=db,
             user_id=user_object_id,
             ad_data=ad_data,
-            image_url=image_url_path  # <-- Pass the new image path
+            image_url_square=image_url_square_path,
+            image_url_landscape=image_url_landscape_path
         )
         return _to_ad_creative_public(ad_db)
     except Exception as e:
         logger.error(f"Failed to create ad draft for user {current_user.email}: {e}", exc_info=True)
-        # Delete the orphaned image
-        if file_path_on_disk.exists():
-            try: os.remove(file_path_on_disk)
-            except Exception as e_del: logger.error(f"Error deleting orphaned image {file_path_on_disk}: {e_del}")
+        # Delete the orphaned images
+        if file_path_square.exists(): os.remove(file_path_square)
+        if file_path_landscape.exists(): os.remove(file_path_landscape)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(e)
@@ -167,7 +181,7 @@ async def list_user_ad_creatives(
     ads_db = await ad_crud.get_all_ad_creatives_by_user(db, user_id=user_object_id, skip=skip, limit=limit)
     return [_to_ad_creative_public(ad) for ad in ads_db]
 
-# --- UPDATED TO HANDLE IMAGE DELETION ---
+# --- UPDATED TO HANDLE TWO IMAGE DELETIONS ---
 @router.delete(
     "/{ad_id}",
     status_code=status.HTTP_204_NO_CONTENT,
@@ -186,35 +200,39 @@ async def delete_ad_draft(
     except Exception:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid ad ID format.")
 
-    # Get the ad first to find its image URL
+    # Get the ad first to find its image URLs
     ad_to_delete = await ad_crud.get_ad_creative_by_id(db, ad_id=ad_object_id, user_id=user_object_id)
     if not ad_to_delete:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Ad draft not found or access denied.")
     
-    image_url_to_delete = ad_to_delete.image_url
+    # --- Get both image URLs ---
+    image_urls_to_delete = [
+        ad_to_delete.image_url_square,
+        ad_to_delete.image_url_landscape
+    ]
 
     # Delete the database record
     success = await ad_crud.delete_ad_creative(db, ad_id=ad_object_id, user_id=user_object_id)
     if not success:
-        # This shouldn't happen if we just found it, but good to check
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Failed to delete ad draft.")
 
-    # --- Add background task to delete the image file ---
-    if image_url_to_delete and image_url_to_delete.startswith("/static/ad_creative_images/"):
-        filename = image_url_to_delete.split("/")[-1]
-        file_path_to_delete = AD_CREATIVE_IMAGES_DIR / filename
-        
-        def delete_image_file(path_to_delete: Path):
-            if path_to_delete.exists():
-                try:
-                    os.remove(path_to_delete)
-                    logger.info(f"Ad creative image file deleted: {path_to_delete}")
-                except Exception as e_del:
-                    logger.error(f"Error deleting ad image file {path_to_delete}: {e_del}")
-            else:
-                logger.warning(f"Ad creative image file not found for deletion: {path_to_delete}")
-        
-        background_tasks.add_task(delete_image_file, file_path_to_delete)
+    # --- Helper for background deletion ---
+    def delete_image_file(path_to_delete: Path):
+        if path_to_delete.exists():
+            try:
+                os.remove(path_to_delete)
+                logger.info(f"Ad creative image file deleted: {path_to_delete}")
+            except Exception as e_del:
+                logger.error(f"Error deleting ad image file {path_to_delete}: {e_del}")
+        else:
+            logger.warning(f"Ad creative image file not found for deletion: {path_to_delete}")
+
+    # --- Add background task to delete both image files ---
+    for img_url in image_urls_to_delete:
+        if img_url and img_url.startswith("/static/ad_creative_images/"):
+            filename = img_url.split("/")[-1]
+            file_path_to_delete = AD_CREATIVE_IMAGES_DIR / filename
+            background_tasks.add_task(delete_image_file, file_path_to_delete)
     
     return None
 
@@ -245,40 +263,46 @@ async def publish_ad_to_google_ads(
     if ad_draft.platform != "GOOGLE":
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="This ad is not designated for Google.")
     
-    # --- NEW: Check for image URL ---
-    if not ad_draft.image_url:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot publish ad: Image is missing.")
+    # --- UPDATED: Check for both image URLs ---
+    if not ad_draft.image_url_square or not ad_draft.image_url_landscape:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot publish ad: Both a square (1:1) and landscape (1.91:1) image are required.")
 
     # 2. Get the user's Google refresh token
     if not current_user.google_refresh_token:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Google Ads account is not linked.")
 
     # 3. Get the Google Ads Customer ID
-    google_customer_id = current_user.google_ads_customer_id
+    google_customer_id = current_user.google_ad_account_id
     if not google_customer_id:
         logger.warning(f"User {current_user.email} has no Google Ads Customer ID. Publishing will likely fail or use a default.")
         from app.core.config import TEST_GOOGLE_CUSTOMER_ID
         google_customer_id = TEST_GOOGLE_CUSTOMER_ID
         if not google_customer_id:
-                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No Google Ads Customer ID is configured for this user.")
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No Google Ads Customer ID is configured for this user.")
 
     try:
         # 4. Initialize Google Ads Client
         client = google_ads_service.get_google_ads_client(current_user.google_refresh_token)
         
-        # --- NEW: Get absolute path to image ---
-        image_filename = Path(ad_draft.image_url).name
-        image_absolute_path = AD_CREATIVE_IMAGES_DIR / image_filename
-        if not image_absolute_path.exists():
-            logger.error(f"Image file not found at {image_absolute_path} for ad {ad_id}")
-            raise HTTPException(status_code=500, detail="Ad image file not found on server.")
+        # --- UPDATED: Get absolute paths for both images ---
+        image_filename_square = Path(ad_draft.image_url_square).name
+        image_path_square = AD_CREATIVE_IMAGES_DIR / image_filename_square
+        
+        image_filename_landscape = Path(ad_draft.image_url_landscape).name
+        image_path_landscape = AD_CREATIVE_IMAGES_DIR / image_filename_landscape
+
+        if not image_path_square.exists() or not image_path_landscape.exists():
+            logger.error(f"One or more image files not found for ad {ad_id}")
+            raise HTTPException(status_code=500, detail="Ad image files not found on server.")
         
         # 5. Call the service to create the campaign
         campaign_resource_name = await google_ads_service.create_paused_ad_campaign(
             client=client,
             customer_id=google_customer_id,
             ad_draft=ad_draft,
-            image_path=str(image_absolute_path) # <-- Pass the full image path
+            # --- UPDATED: Pass both image paths ---
+            image_path_square=str(image_path_square),
+            image_path_landscape=str(image_path_landscape)
         )
         logger.info(f"Successfully created campaign: {campaign_resource_name}")
 

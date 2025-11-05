@@ -1,5 +1,4 @@
-# D:/socialadify/backend/app/api/ads/schemas.py
-
+# D:\socialadify\backend\app\api\ads\schemas.py
 from pydantic import BaseModel, Field, HttpUrl, ConfigDict, BeforeValidator
 from typing import Optional, List, Annotated
 from datetime import datetime
@@ -28,9 +27,12 @@ class AdCreativeBase(BaseModel):
     ad_goal: str = Field(..., example="TRAFFIC") # e.g., "TRAFFIC", "AWARENESS", "LEADS"
     headline: str = Field(..., example="Massive Discounts on All-New Tech!")
     body_text: str = Field(..., example="Click to shop the best deals of the season.")
-    # --- THIS IS THE FIX ---
-    # Changed from HttpUrl to str to allow relative paths
-    image_url: Optional[str] = Field(default=None, example="/static/ad_creative_images/image.png") 
+    
+    # --- UPDATED: Replaced single image_url with two ---
+    image_url_square: Optional[str] = Field(default=None, example="/static/ad_creative_images/image_1x1.png")
+    image_url_landscape: Optional[str] = Field(default=None, example="/static/ad_creative_images/image_1.91x1.png")
+    # ---
+    
     platform: str = Field(..., example="GOOGLE")
     audience: GoogleAudienceSchema = Field(...)
 
@@ -44,9 +46,12 @@ class AdCreativeUpdate(BaseModel):
     ad_goal: Optional[str] = None
     headline: Optional[str] = None
     body_text: Optional[str] = None
-    # --- THIS IS THE FIX ---
-    # Changed from HttpUrl to str
-    image_url: Optional[str] = None 
+    
+    # --- UPDATED: Replaced single image_url with two ---
+    image_url_square: Optional[str] = None
+    image_url_landscape: Optional[str] = None
+    # ---
+    
     audience: Optional[GoogleAudienceSchema] = None
 
 # --- Database Model (for internal use) ---
@@ -78,3 +83,4 @@ class AIPlatformSuggestionRequest(BaseModel):
 class AIPlatformSuggestionResponse(BaseModel):
     recommended_platform: str # "GOOGLE" or "META"
     recommendation: str # The justification text
+

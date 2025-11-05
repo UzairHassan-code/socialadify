@@ -1,4 +1,4 @@
-# D:/socialadify/backend/app/crud/ad_creative.py
+# D:\socialadify\backend\app\crud\ad_creative.py
 from motor.motor_asyncio import AsyncIOMotorDatabase, AsyncIOMotorCollection
 from typing import List, Optional, Dict, Any
 from datetime import datetime, timezone
@@ -19,7 +19,9 @@ async def create_ad_creative(
     db: AsyncIOMotorDatabase, 
     user_id: ObjectId, 
     ad_data: AdCreativePayload,
-    image_url: Optional[str]  # <-- ADDED THIS PARAMETER
+    # --- UPDATED: Accept two image URLs ---
+    image_url_square: Optional[str],
+    image_url_landscape: Optional[str]
 ) -> AdCreativeInDB:
     """
     Creates a new ad creative draft in the database.
@@ -36,7 +38,10 @@ async def create_ad_creative(
         "ad_goal": ad_data.ad_goal,
         "headline": ad_data.headline,
         "body_text": ad_data.body_text,
-        "image_url": image_url,  # <-- UPDATED THIS LINE
+        # --- UPDATED: Save both new image URLs ---
+        "image_url_square": image_url_square,
+        "image_url_landscape": image_url_landscape,
+        # ---
         "platform": ad_data.platform,
         "audience": audience_doc,
         "status": "DRAFT",  # Always start as DRAFT
@@ -112,8 +117,13 @@ async def update_ad_creative(
         # We replace the whole audience sub-document
         update_fields["audience"] = update_data.audience.model_dump()
         
-    if "image_url" in update_fields:
-        update_fields["image_url"] = str(update_data.image_url) if update_data.image_url else None
+    # --- UPDATED: Check for new image URL fields ---
+    if "image_url_square" in update_fields:
+        update_fields["image_url_square"] = str(update_data.image_url_square) if update_data.image_url_square else None
+    
+    if "image_url_landscape" in update_fields:
+        update_fields["image_url_landscape"] = str(update_data.image_url_landscape) if update_data.image_url_landscape else None
+    # ---
 
     if not update_fields:
         logger.info(f"No fields to update for ad {ad_id}.")
