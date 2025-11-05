@@ -15,7 +15,6 @@ import json
 import sys
 # --- NEW IMPORTS ---
 from google.generativeai.types import GenerationConfig
-from app.api.ads.schemas import GoogleAudienceSchema
 
 warnings.filterwarnings('ignore')
 
@@ -224,7 +223,7 @@ async def get_optimal_post_time(caption: str, platform: str, is_boosted: bool, u
 
 async def get_platform_recommendation(
     ad_goal: str, 
-    audience: GoogleAudienceSchema, 
+    audience_description: str, 
     product_description: str
 ) -> Dict[str, Any]:
     """
@@ -244,12 +243,6 @@ async def get_platform_recommendation(
     # Using 1.5-flash-latest as it's modern and supports JSON mode well
     model = genai.GenerativeModel('gemini-2.0-flash')
     
-    # Construct a detailed prompt
-    audience_summary = f"locations: {', '.join(audience.locations)}, "
-    audience_summary += f"age range: {audience.age_min}-{audience.age_max}, "
-    audience_summary += f"genders: {', '.join(audience.genders)}, "
-    audience_summary += f"interests: {', '.join(audience.interests)}"
-    
     prompt = f"""
     As a digital marketing expert, I need to choose the best advertising platform for my new campaign.
     Please recommend either "Google Ads" or "Meta (Facebook/Instagram)" and provide a justification.
@@ -257,7 +250,7 @@ async def get_platform_recommendation(
     My Campaign Details:
     - Product/Service: {product_description}
     - Marketing Goal: {ad_goal}
-    - Target Audience: {audience_summary}
+    - Target Audience: {audience_description}
 
     First, analyze the information. 
     - Google Ads is best for high-intent searches (e.g., "buy wireless headphones").

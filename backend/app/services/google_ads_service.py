@@ -1,3 +1,5 @@
+# D:\socialadify\backend\app\services\google_ads_service.py
+
 from google.ads.googleads.client import GoogleAdsClient
 from google.ads.googleads.errors import GoogleAdsException
 import logging
@@ -8,7 +10,7 @@ import mimetypes
 from typing import List, Dict, Optional, Any
 
 # --- Schema Imports ---
-from app.api.ads.schemas import AdCreativeInDB, GoogleAudienceSchema
+from app.api.ads.schemas import AdCreativeInDB
 
 # --- Google Ads API Imports (Corrected to V22) ---
 from google.ads.googleads.v22.services.types.google_ads_service import GoogleAdsRow
@@ -19,16 +21,7 @@ from google.ads.googleads.v22.services.types.ad_group_ad_service import AdGroupA
 from google.ads.googleads.v22.services.types.asset_service import AssetOperation
 from google.ads.googleads.v22.services.types.ad_group_criterion_service import AdGroupCriterionOperation
 
-from google.ads.googleads.v22.common.types.criteria import (
-    LocationInfo,
-    GenderInfo,
-    AgeRangeInfo,
-    UserInterestInfo,
-)
-from google.ads.googleads.v22.common.types.asset_types import (
-    ImageAsset,
-    TextAsset
-)
+
 from google.ads.googleads.v22.common.types.ad_type_infos import (
     ResponsiveDisplayAdInfo,
 )
@@ -44,12 +37,10 @@ from google.ads.googleads.v22.enums.types import (
     asset_type as asset_type_enum,
     advertising_channel_type as advertising_channel_type_enum,
     budget_delivery_method as budget_delivery_method_enum,
-    age_range_type as age_range_type_enum,
-    gender_type as gender_type_enum,
     display_ad_format_setting as display_ad_format_setting_enum,
-    bidding_strategy_type as bidding_strategy_type_enum,
     mime_type as mime_type_enum,
-    eu_political_advertising_status as eu_political_enum
+    eu_political_advertising_status as eu_political_enum,
+    call_to_action_type as call_to_action_type_enum
 )
 # ---
 
@@ -233,7 +224,7 @@ def _create_campaign(client: GoogleAdsClient, customer_id: str, budget_resource_
         eu_political_enum.EuPoliticalAdvertisingStatusEnum.EuPoliticalAdvertisingStatus.DOES_NOT_CONTAIN_EU_POLITICAL_ADVERTISING
     )
     
-    campaign.status = campaign_status_enum.CampaignStatusEnum.CampaignStatus.PAUSED
+    campaign.status = campaign_status_enum.CampaignStatusEnum.CampaignStatus.ENABLED
     campaign.campaign_budget = budget_resource_name
     
     campaign.advertising_channel_type = advertising_channel_type_enum.AdvertisingChannelTypeEnum.AdvertisingChannelType.DISPLAY
@@ -291,30 +282,50 @@ def _create_responsive_display_ad(
     
     ad = ad_group_ad.ad
     # Using a placeholder final URL as it's required.
-    ad.final_urls.append("https://www.socialadify.com")
+    ad.final_urls.append(ad_draft.final_url)
     
     ad.name = f"{ad_draft.campaign_name} Responsive Ad"
     
     # Create the responsive display ad info
     responsive_ad = client.get_type("ResponsiveDisplayAdInfo")
     
-    # Add headline
-    headline = client.get_type("AdTextAsset")
-    headline.text = ad_draft.headline
-    responsive_ad.headlines.append(headline)
+        # Add headlines (min 1, max 5)
+    for headline_text in ad_draft.headlines:
+        headline = client.get_type("AdTextAsset")
+        headline.text = headline_text
+        responsive_ad.headlines.append(headline)
     
     # Add body text (description)
-    body_text = client.get_type("AdTextAsset")
-    body_text.text = ad_draft.body_text
-    responsive_ad.descriptions.append(body_text)
+    for description_text in ad_draft.descriptions:
+        description = client.get_type("AdTextAsset")
+        description.text = description_text
+        responsive_ad.descriptions.append(description)
     
-    # Add required long_headline
+    # --- FIX: Use singular 'long_headline' ---
     long_headline = client.get_type("AdTextAsset")
-    long_headline.text = ad_draft.headline[:90] # Use headline as long headline (up to 90 chars)
-    responsive_ad.long_headline = long_headline
+    long_headline.text = ad_draft.long_headline[:90] # Use field from DB
+    responsive_ad.long_headline = long_headline # Direct assignment
 
-    # Add required call_to_action_text
-    responsive_ad.call_to_action_text = "Learn More"
+
+    CTA_STRING_MAP = {
+        "LEARN_MORE": "Learn More",
+        "SHOP_NOW": "Shop Now",
+        "SIGN_UP": "Sign Up",
+        "CONTACT_US": "Contact Us",
+        "BOOK_NOW": "Book Now",
+        "DOWNLOAD": "Download",
+        "GET_QUOTE": "Get Quote",
+    }
+    
+    # Get the human-readable string from the map.
+    # Default to "Learn More" if the DB value is somehow invalid.
+    cta_string = CTA_STRING_MAP.get(ad_draft.call_to_action_text, "Learn More")
+    
+    # Assign the correct string to the API object
+    responsive_ad.call_to_action_text = cta_string
+
+    # Add business name (required)
+    responsive_ad.business_name = ad_draft.business_name
     
     # ---
     
@@ -328,15 +339,9 @@ def _create_responsive_display_ad(
     image_asset_landscape.asset = image_asset_name_landscape
     responsive_ad.marketing_images.append(image_asset_landscape)
     
-    # ---
-
-    # Add business name (required)
-    responsive_ad.business_name = "SocialAdify" # Using project name as placeholder
     
     responsive_ad.format_setting = display_ad_format_setting_enum.DisplayAdFormatSettingEnum.DisplayAdFormatSetting.NON_NATIVE
     
-    # --- FIX: Revert to using CopyFrom() ---
-    # This is the correct way to assign a message to a field in proto-plus
     # The previous AttributeError was likely due to other (now fixed) bugs.
     ad.responsive_display_ad = responsive_ad
 
@@ -344,44 +349,6 @@ def _create_responsive_display_ad(
     resource_name = mutate_response.results[0].resource_name
     logger.info(f"Created ad with resource name: {resource_name}")
     return resource_name
-
-def _get_location_criterion_id(client: GoogleAdsClient, customer_id: str, location_name: str) -> Optional[str]:
-    """Helper to find the resource name for a location by its name."""
-    ga_service = client.get_service("GoogleAdsService")
-    # --- FIX: Add escaping for single quotes in location names ---
-    query = f"""
-        SELECT geo_target_constant.resource_name, geo_target_constant.name
-        FROM geo_target_constant
-        WHERE geo_target_constant.name = '{location_name.replace("'", "\\'")}'
-        AND geo_target_constant.status = 'ENABLED'
-        AND geo_target_constant.target_type IN ('City', 'Country', 'State', 'Postal_Code', 'Province')
-        LIMIT 1
-    """
-    try:
-        response = ga_service.search(customer_id=customer_id, query=query)
-        for row in response:
-            return row.geo_target_constant.resource_name
-    except Exception as e:
-        logger.warning(f"Could not find criterion ID for location '{location_name}': {e}")
-    return None
-
-def _get_user_interest_criterion_id(client: GoogleAdsClient, customer_id: str, interest_name: str) -> Optional[str]:
-    """Helper to find the resource name for an interest by its name."""
-    ga_service = client.get_service("GoogleAdsService")
-    # --- FIX: Add escaping for single quotes in interest names ---
-    query = f"""
-        SELECT user_interest.resource_name, user_interest.name
-        FROM user_interest
-        WHERE user_interest.name = '{interest_name.replace("'", "\\'")}'
-        LIMIT 1
-    """
-    try:
-        response = ga_service.search(customer_id=customer_id, query=query)
-        for row in response:
-            return row.user_interest.resource_name
-    except Exception as e:
-        logger.warning(f"Could not find criterion ID for interest '{interest_name}': {e}")
-    return None
 
 
 

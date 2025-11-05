@@ -1,29 +1,32 @@
-// D:/socialadify/frontend/src/app/ad-creator/page.tsx
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '../../context/AuthContext'; // Use relative path
 import Link from 'next/link';
 import {
     fetchAdCreatives,
     deleteAdCreative,
     publishAdToGoogle,
     AdCreativePublic
-} from '@/services/adCreatorService';
+} from '../../services/adCreatorService'; // Use relative path
 
-// Import the new components using the @ alias from your main components folder
-import { AdDashboard } from '@/components/AdDashboard';
-import { AdCreatorForm } from '@/components/AdCreatorForm';
+// Import the new components using relative paths
+import { AdDashboard } from '../../components/AdDashboard';
+import { AdCreatorForm } from '../../components/AdCreatorForm';
+import { AIPlatformSuggestor } from '../../components/AIPlatformSuggestor';
 
 // --- Icons ---
 const HomeIcon = ({ className = "w-4 h-4" }: { className?: string }) => ( <svg className={className} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125A2.25 2.25 0 0021 18.75V9.75M8.25 21h7.5" /></svg> );
 const LoadingSpinner = ({ className = "animate-spin h-5 w-5 text-white" }: {className?: string}) => ( <svg className={className} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>);
+const MetaIcon = ({ className = "w-5 h-5" }: { className?: string }) => (<svg className={className} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M22.002 10.119c-.066-1.57-.37-2.923-.834-4.052a5.42 5.42 0 0 0-1.87-2.344C18.25.922 17.006.46 15.65.21a19.43 19.43 0 0 0-7.298 0c-1.357.25-2.602.712-3.65 1.513a5.42 5.42 0 0 0-1.87 2.344c-.464 1.13-.768 2.482-.834 4.052a19.53 19.53 0 0 0 0 3.764c.066 1.57.37 2.923.834 4.051a5.42 5.42 0 0 0 1.87 2.345c1.048.8 2.293 1.263 3.65 1.513a19.43 19.43 0 0 0 7.298 0c1.357-.25 2.602-.713 3.65-1.513a5.42 5.42 0 0 0 1.87-2.345c.464-1.128.768-2.481.834-4.051a19.53 19.53 0 0 0 0-3.764Zm-10.02 7.02c-3.15 0-5.703-2.62-5.703-5.86s2.554-5.86 5.704-5.86c3.149 0 5.703 2.62 5.703 5.86s-2.554 5.86-5.704 5.86Z"></path></svg>);
 
-type PageState = 'dashboard' | 'creating';
+// --- UPDATED: New Page States for the Wizard Workflow ---
+type PageState = 'dashboard' | 'suggesting' | 'creatingGoogle' | 'creatingMeta';
 
 export default function AdCreatorPage() {
     const { token, logout, isAuthReady } = useAuth();
     
+    // --- UPDATED: Default state is 'dashboard' ---
     const [pageState, setPageState] = useState<PageState>('dashboard');
     const [ads, setAds] = useState<AdCreativePublic[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -95,6 +98,93 @@ export default function AdCreatorPage() {
         }
     };
 
+    // --- NEW: Handlers for the new workflow ---
+    const handleGoToSuggestor = () => {
+        setError(null);
+        setPageState('suggesting');
+    };
+
+    const handleCancelCreate = () => {
+        setError(null);
+        setPageState('dashboard');
+    };
+
+    const handlePlatformSelected = (platform: 'google' | 'meta') => {
+        if (platform === 'google') {
+            setPageState('creatingGoogle');
+        } else {
+            setPageState('creatingMeta');
+        }
+    };
+    // ---
+
+    // --- NEW: Render Logic ---
+    const renderCurrentState = () => {
+        switch (pageState) {
+            case 'dashboard':
+                return (
+                    <AdDashboard
+                        ads={ads}
+                        isLoading={isLoading}
+                        isPublishing={isPublishing}
+                        onGoToCreate={handleGoToSuggestor} // <-- Updated
+                        onDelete={handleDelete}
+                        onPublish={handlePublish}
+                        cardClass={cardClass}
+                    />
+                );
+            case 'suggesting':
+                return (
+                    <AIPlatformSuggestor
+                        token={token}
+                        onPlatformSelected={handlePlatformSelected}
+                        onCancel={handleCancelCreate}
+                        cardClass={cardClass}
+                    />
+                );
+            case 'creatingGoogle':
+                return (
+                    <AdCreatorForm
+                        token={token}
+                        onDraftSaved={handleDraftSaved}
+                        onCancel={handleCancelCreate}
+                        cardClass={cardClass}
+                    />
+                );
+            case 'creatingMeta':
+                return (
+                    <div className={`${cardClass} text-center`}>
+                        <div className="flex justify-center mb-4">
+                            <MetaIcon className="w-16 h-16 text-blue-500" />
+                        </div>
+                        <h2 className="text-3xl font-bold text-slate-100">Meta Ad Creator</h2>
+                        <p className="text-slate-400 mt-4 mb-6">
+                            This feature is coming soon! You will be able to create and publish ads for Facebook and Instagram here.
+                        </p>
+                        <button
+                            type="button"
+                            onClick={handleCancelCreate}
+                            className="text-sm text-sky-400 hover:text-sky-300"
+                        >
+                            &larr; Back to Dashboard
+                        </button>
+                    </div>
+                );
+            default:
+                return (
+                    <AdDashboard
+                        ads={ads}
+                        isLoading={isLoading}
+                        isPublishing={isPublishing}
+                        onGoToCreate={handleGoToSuggestor}
+                        onDelete={handleDelete}
+                        onPublish={handlePublish}
+                        cardClass={cardClass}
+                    />
+                );
+        }
+    };
+
     // --- Main Page Render ---
     return (
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -123,26 +213,9 @@ export default function AdCreatorPage() {
                     </div>
                 )}
 
-                {pageState === 'dashboard' ? (
-                    <AdDashboard
-                        ads={ads}
-                        isLoading={isLoading}
-                        isPublishing={isPublishing}
-                        onGoToCreate={() => setPageState('creating')}
-                        onDelete={handleDelete}
-                        onPublish={handlePublish}
-                        cardClass={cardClass} // Pass down styles
-                    />
-                ) : (
-                    <AdCreatorForm
-                        token={token}
-                        onDraftSaved={handleDraftSaved}
-                        onCancel={() => setPageState('dashboard')}
-                        cardClass={cardClass} // Pass down styles
-                    />
-                )}
+                {/* --- NEW: Use the render function --- */}
+                {renderCurrentState()}
             </div>
         </div>
     );
 }
-

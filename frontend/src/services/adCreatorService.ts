@@ -1,4 +1,5 @@
 // D:\socialadify\frontend\src\services\adCreatorService.ts
+
 import { UserPublic } from './authService';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
@@ -27,23 +28,23 @@ async function handleApiError(response: Response, defaultErrorMessage: string): 
 
 // --- Interface Definitions ---
 
-export interface GoogleAudience {
-    locations: string[];
-    age_min?: number | null;
-    age_max?: number | null;
-    genders: string[];
-    interests: string[];
-}
+// --- Audience Interface Removed ---
 
+// --- UPDATED: This now matches all fields in the new form ---
 export interface AdCreativePayload {
     campaign_name: string;
     ad_goal: string;
-    headline: string;
-    body_text: string;
-    // image_urls are no longer part of this payload, they're sent as files
     platform: 'GOOGLE' | 'META';
-    audience: GoogleAudience;
+    
+    // New Ad Creative Fields
+    final_url: string;
+    business_name: string;
+    call_to_action_text: string;
+    headlines: string[];
+    long_headline: string;
+    descriptions: string[];
 }
+// ---
 
 // --- UPDATED PAYLOAD FOR THE FORM ---
 export interface AdCreativeFormPayload {
@@ -53,57 +54,42 @@ export interface AdCreativeFormPayload {
 }
 // ---
 
+// --- UPDATED: This now matches all fields in the new form ---
 export interface AdCreativePublic {
     id: string;
     user_id: string;
     campaign_name: string;
     ad_goal: string;
-    headline: string;
-    body_text: string;
-    // --- NEW: Add both image URLs ---
+    platform: string;
+    
+    // New Ad Creative Fields
+    final_url: string;
+    business_name: string;
+    call_to_action_text: string;
+    headlines: string[];
+    long_headline: string;
+    descriptions: string[];
+
+    // Image URLs
     image_url_square?: string | null;
     image_url_landscape?: string | null;
-    platform: string;
-    audience: GoogleAudience;
+    
     status: 'DRAFT' | 'PUBLISHED' | 'FAILED';
     created_at: string;
     updated_at: string;
     error_message?: string | null;
 }
-
+// ---
+// --- RE-ADDED: AI Suggestion Schemas ---
 export interface AIPlatformSuggestionRequest {
     ad_goal: string;
-    audience: GoogleAudience;
+    audience_description: string;
     product_description: string;
 }
 
 export interface AIPlatformSuggestionResponse {
     recommendation: string;
     recommended_platform: 'GOOGLE' | 'META';
-}
-
-// --- API Functions ---
-
-/**
- * Fetches an AI-powered platform recommendation.
- */
-export async function getAIPlatformSuggestion(
-    token: string, 
-    payload: AIPlatformSuggestionRequest
-): Promise<AIPlatformSuggestionResponse> {
-    const response = await fetch(`${API_BASE_URL}/ads/recommend`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify(payload),
-    });
-
-    if (!response.ok) {
-        return handleApiError(response, 'Failed to get AI platform suggestion.');
-    }
-    return response.json();
 }
 
 /**
@@ -142,6 +128,25 @@ export async function createAdCreative(
     return response.json();
 }
 
+export async function getAIPlatformSuggestion(
+    token: string, 
+    payload: AIPlatformSuggestionRequest
+): Promise<AIPlatformSuggestionResponse> {
+    const response = await fetch(`${API_BASE_URL}/ads/recommend`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+        return handleApiError(response, 'Failed to get AI platform suggestion.');
+    }
+    return response.json();
+}
+// ---
 /**
  * Fetches all ad creatives for the user.
  */
@@ -189,4 +194,3 @@ export async function publishAdToGoogle(token: string, adId: string): Promise<Ad
     }
     return response.json();
 }
-

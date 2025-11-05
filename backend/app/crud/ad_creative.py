@@ -8,7 +8,7 @@ import logging
 # --- THIS IS THE CORRECTED IMPORT ---
 # We now import AdCreativePayload instead of AdCreativeCreate
 from app.api.ads.schemas import (
-    AdCreativeInDB, AdCreativePayload, AdCreativeUpdate, GoogleAudienceSchema
+    AdCreativeInDB, AdCreativePayload, AdCreativeUpdate
 )
 # ---
 
@@ -29,21 +29,27 @@ async def create_ad_creative(
     logger.info(f"Creating ad creative draft for user_id: {user_id}")
     collection: AsyncIOMotorCollection = db[AD_CREATIVES_COLLECTION]
     
-    # Convert Pydantic models to dicts for MongoDB
-    audience_doc = ad_data.audience.model_dump()
     
     ad_doc = {
         "user_id": user_id,
         "campaign_name": ad_data.campaign_name,
         "ad_goal": ad_data.ad_goal,
-        "headline": ad_data.headline,
-        "body_text": ad_data.body_text,
-        # --- UPDATED: Save both new image URLs ---
+        "platform": ad_data.platform,
+
+        # Add new ad fields
+        "final_url": ad_data.final_url,
+        "business_name": ad_data.business_name,
+        "call_to_action_text": ad_data.call_to_action_text,
+        "headlines": ad_data.headlines,
+        "long_headline": ad_data.long_headline,
+        "descriptions": ad_data.descriptions,
+        
+        # Image URLs
         "image_url_square": image_url_square,
         "image_url_landscape": image_url_landscape,
-        # ---
-        "platform": ad_data.platform,
-        "audience": audience_doc,
+        
+        # --- 'audience' field removed ---
+        
         "status": "DRAFT",  # Always start as DRAFT
         "created_at": datetime.now(timezone.utc),
         "updated_at": datetime.now(timezone.utc),

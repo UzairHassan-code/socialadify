@@ -19,8 +19,7 @@ from app.db.session import get_database
 from app.services import gemini_service, google_ads_service
 from app.crud import ad_creative as ad_crud
 
-# --- THIS IS THE CORRECTED IMPORT ---
-# We now import AdCreativePayload instead of AdCreativeCreate
+# --- Import from new schema ---
 from app.api.ads.schemas import (
     AdCreativePublic, AdCreativePayload, AdCreativeUpdate, AdCreativeInDB,
     AIPlatformSuggestionRequest, AIPlatformSuggestionResponse
@@ -30,7 +29,7 @@ from app.api.ads.schemas import (
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
-# --- NEW: Static File Directory Setup (like your scheduler) ---
+# --- Static File Directory Setup ---
 _BACKEND_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 AD_CREATIVE_IMAGES_DIR = _BACKEND_ROOT / "static" / "ad_creative_images"
 AD_CREATIVE_IMAGES_DIR.mkdir(parents=True, exist_ok=True)
@@ -51,6 +50,7 @@ def _to_ad_creative_public(ad_db: AdCreativeInDB) -> AdCreativePublic:
     )
 
 # --- AI Recommendation Endpoint ---
+# --- UPDATED: Removed 'audience' from the service call ---
 @router.post(
     "/recommend",
     response_model=AIPlatformSuggestionResponse,
@@ -64,7 +64,7 @@ async def get_platform_recommendation(
     try:
         recommendation = await gemini_service.get_platform_recommendation(
             ad_goal=request.ad_goal,
-            audience=request.audience,
+            audience_description=request.audience_description,
             product_description=request.product_description
         )
         return AIPlatformSuggestionResponse(**recommendation)
@@ -77,7 +77,7 @@ async def get_platform_recommendation(
 
 # --- CRUD Endpoints ---
 
-# --- UPDATED TO HANDLE TWO IMAGE UPLOADS (FormData) ---
+# --- This endpoint is already compatible with the 2-image upload ---
 @router.post(
     "/",
     response_model=AdCreativePublic,
@@ -99,7 +99,7 @@ async def create_new_ad_draft(
             raise HTTPException(status_code=400, detail=f"Invalid file type for {suffix} image. Only images are allowed.")
         
         file_extension = Path(image_file.filename).suffix.lower() if image_file.filename else ".jpg"
-        allowed_extensions = [".jpg", ".jpeg", ".png", ".webp"]
+        allowed_extensions = [".jpg", ".jpeg", ".png", ".webp"] # Webp is allowed for saving
         if file_extension not in allowed_extensions:
             raise HTTPException(status_code=400, detail=f"Unsupported image extension for {suffix}: {file_extension}.")
         
@@ -319,4 +319,3 @@ async def publish_ad_to_google_ads(
     if not updated_ad:
          raise HTTPException(status_code=404, detail="Ad not found after update.") # Should not happen
     return _to_ad_creative_public(updated_ad)
-

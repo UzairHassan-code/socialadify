@@ -15,26 +15,29 @@ PyObjectId = Annotated[ObjectId, BeforeValidator(validate_object_id)]
 
 # --- Base Schemas ---
 
-class GoogleAudienceSchema(BaseModel):
-    locations: List[str] = Field(default=[], example=["New York", "California"])
-    age_min: Optional[int] = Field(default=None, example=18)
-    age_max: Optional[int] = Field(default=None, example=65)
-    genders: List[str] = Field(default=[], example=["Male", "Female"])
-    interests: List[str] = Field(default=[], example=["Technology", "Gaming"])
+# --- GoogleAudienceSchema Removed ---
 
 class AdCreativeBase(BaseModel):
     campaign_name: str = Field(..., example="Fall Sale 2025")
     ad_goal: str = Field(..., example="TRAFFIC") # e.g., "TRAFFIC", "AWARENESS", "LEADS"
-    headline: str = Field(..., example="Massive Discounts on All-New Tech!")
-    body_text: str = Field(..., example="Click to shop the best deals of the season.")
+    platform: str = Field(..., example="GOOGLE")
+
+    # --- UPDATED: New required ad fields ---
+    final_url: str = Field(..., example="https://www.socialadify.com")
+    business_name: str = Field(..., example="SocialAdify")
+    call_to_action_text: str = Field(..., example="LEARN_MORE")
     
-    # --- UPDATED: Replaced single image_url with two ---
+    headlines: List[str] = Field(..., min_length=1, max_length=5, example=["Headline 1", "Headline 2"])
+    long_headline: str = Field(..., example="This is the Long Headline (up to 90 chars)")
+    descriptions: List[str] = Field(..., min_length=1, max_length=5, example=["Description 1", "Description 2"])
+    # ---
+
+    # --- Image URLs ---
     image_url_square: Optional[str] = Field(default=None, example="/static/ad_creative_images/image_1x1.png")
     image_url_landscape: Optional[str] = Field(default=None, example="/static/ad_creative_images/image_1.91x1.png")
     # ---
     
-    platform: str = Field(..., example="GOOGLE")
-    audience: GoogleAudienceSchema = Field(...)
+    # --- 'audience' field Removed ---
 
 # --- API Schemas ---
 
@@ -44,15 +47,20 @@ class AdCreativePayload(AdCreativeBase):
 class AdCreativeUpdate(BaseModel):
     campaign_name: Optional[str] = None
     ad_goal: Optional[str] = None
-    headline: Optional[str] = None
-    body_text: Optional[str] = None
     
-    # --- UPDATED: Replaced single image_url with two ---
+    # --- UPDATED: New ad fields ---
+    final_url: Optional[str] = None
+    business_name: Optional[str] = None
+    call_to_action_text: Optional[str] = None
+    headlines: Optional[List[str]] = None
+    long_headline: Optional[str] = None
+    descriptions: Optional[List[str]] = None
+    # ---
+
     image_url_square: Optional[str] = None
     image_url_landscape: Optional[str] = None
-    # ---
     
-    audience: Optional[GoogleAudienceSchema] = None
+    # --- 'audience' field Removed ---
 
 # --- Database Model (for internal use) ---
 class AdCreativeInDB(AdCreativeBase):
@@ -77,10 +85,9 @@ class AdCreativePublic(AdCreativeBase):
 # --- AI Suggestion Schemas ---
 class AIPlatformSuggestionRequest(BaseModel):
     ad_goal: str
-    audience: GoogleAudienceSchema
+    audience_description: str = Field(..., min_length=5, example="Gamers and tech enthusiasts")
     product_description: str = Field(..., min_length=10)
 
 class AIPlatformSuggestionResponse(BaseModel):
     recommended_platform: str # "GOOGLE" or "META"
     recommendation: str # The justification text
-
