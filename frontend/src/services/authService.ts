@@ -35,6 +35,7 @@ export interface UserPublic {
     google_ad_account_id?: string | null;
     linked_page_id?: string | null;
     linked_page_name?: string | null;
+    linked_instagram_id?: string | null;
     linked_instagram_username?: string | null;
 }
 

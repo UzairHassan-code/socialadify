@@ -87,7 +87,7 @@ app.include_router(google_auth_router, prefix="/auth", tags=["Google Authenticat
 app.include_router(meta_auth_router, prefix="/auth", tags=["Meta Authentication"])
 
 app.include_router(insights_router, prefix="/insights", tags=["Insights & Ad Analytics"])
-app.include_router(meta_insights_router, prefix="/insights/meta", tags=["Meta Insights"]) 
+app.include_router(meta_insights_router, prefix="/insights", tags=["Meta Insights"]) 
 app.include_router(google_ads_router, prefix="/insights", tags=["Google Ads Insights"])
 
 app.include_router(captions_router, prefix="/captions", tags=["AI Caption Generation"])

@@ -110,6 +110,7 @@ class UserPublic(UserBase):
     # --- THE FIX: We expose the 'linked_' fields to the frontend ---
     linked_page_id: Optional[str] = None
     linked_page_name: Optional[str] = None
+    linked_instagram_id: Optional[str] = None
     linked_instagram_username: Optional[str] = None
 
     @classmethod
@@ -125,6 +126,7 @@ class UserPublic(UserBase):
             # Map the new "linked_" fields from the database model
             linked_page_id=user_in_db.linked_page_id,
             linked_page_name=user_in_db.linked_page_name,
+            linked_instagram_id=user_in_db.linked_instagram_id,
             linked_instagram_username=user_in_db.linked_instagram_username,
         )
 

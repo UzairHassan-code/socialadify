@@ -26,7 +26,7 @@ META_APP_SECRET = config.META_APP_SECRET
 META_REDIRECT_URI = f"{config.SERVER_HOST}/auth/meta/callback"
 
 # The correct permissions to manage and publish to pages
-META_SCOPES = "pages_show_list,pages_read_engagement,pages_manage_posts,instagram_basic,instagram_content_publish"
+META_SCOPES = "pages_show_list,pages_read_engagement,pages_manage_posts,instagram_basic,instagram_content_publish,business_management,read_insights,instagram_manage_insights"
 
 # --- Pydantic Models ---
 class LinkedMetaAccountPayload(BaseModel):

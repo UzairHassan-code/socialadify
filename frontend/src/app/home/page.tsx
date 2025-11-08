@@ -53,7 +53,6 @@ const PostGenerationIcon = () => (
     </IconWrapper>
 );
 
-// --- NEW ICON ---
 const AdPlacementIcon = () => (
     <IconWrapper colorClass="bg-indigo-100 group-hover:bg-indigo-200" iconColorClass="text-indigo-600 group-hover:text-indigo-700">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
@@ -61,7 +60,18 @@ const AdPlacementIcon = () => (
         </svg>
     </IconWrapper>
 );
+
+// --- NEW ICON FOR SOCIAL INSIGHTS ---
+const SocialInsightsIcon = () => (
+    <IconWrapper colorClass="bg-purple-100 group-hover:bg-purple-200" iconColorClass="text-purple-600 group-hover:text-purple-700">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6a7.5 7.5 0 107.5 7.5h-7.5V6z" />
+            <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 10.5H21A7.5 7.5 0 0013.5 3v7.5z" />
+        </svg>
+    </IconWrapper>
+);
 // --- END NEW ICON ---
+
 
 interface ModuleCardProps {
     title: string;
@@ -143,7 +153,16 @@ export default function HomePage() {
                     actionText="View Dashboard"
                 />
                 
-                {/* --- NEW MODULE CARD --- */}
+                {/* --- NEW SOCIAL INSIGHTS CARD --- */}
+                <ModuleCard
+                    title="Social Media Insights"
+                    description="Analyze organic performance of your Facebook & Instagram pages. Track reach, engagement, and post-wise metrics."
+                    link="/social-insights"
+                    icon={<SocialInsightsIcon />}
+                    actionText="View Insights"
+                />
+                {/* --- END NEW SOCIAL INSIGHTS CARD --- */}
+
                 <ModuleCard
                     title="AI Ad Placement"
                     description="Create, target, and get AI recommendations for your Google & Meta ad campaigns."
@@ -151,7 +170,6 @@ export default function HomePage() {
                     icon={<AdPlacementIcon />}
                     actionText="Create Ad"
                 />
-                {/* --- END NEW MODULE CARD --- */}
 
                 <ModuleCard
                     title="Caption Generation"
@@ -187,4 +205,3 @@ export default function HomePage() {
         </div>
     );
 }
-
