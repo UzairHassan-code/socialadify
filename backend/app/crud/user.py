@@ -119,6 +119,12 @@ async def set_user_google_ad_account(db: AsyncIOMotorDatabase, user_id: ObjectId
     updated_user_doc = await db[USERS_COLLECTION].find_one({"_id": user_id})
     return UserInDB(**updated_user_doc) if updated_user_doc else None
 
+async def set_user_meta_ad_account(db: AsyncIOMotorDatabase, user_id: ObjectId, ad_account_id: str) -> Optional[UserInDB]:
+    """Saves the user's default Meta Ad Account ID."""
+    await db[USERS_COLLECTION].update_one({"_id": user_id}, {"$set": {"meta_ad_account_id": ad_account_id}})
+    updated_user_doc = await db[USERS_COLLECTION].find_one({"_id": user_id})
+    return UserInDB(**updated_user_doc) if updated_user_doc else None
+
 # --- NEW: Functions for the Server-Side Page Access Token Flow ---
 
 async def update_user_meta_token(

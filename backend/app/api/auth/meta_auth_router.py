@@ -1,5 +1,4 @@
-# D:/socialadify/backend/app/api/auth/meta_auth_router.py
-
+# D:\socialadify\backend\app\api\auth\meta_auth_router.py
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.responses import RedirectResponse, JSONResponse
@@ -25,8 +24,14 @@ META_APP_ID = config.META_APP_ID
 META_APP_SECRET = config.META_APP_SECRET
 META_REDIRECT_URI = f"{config.SERVER_HOST}/auth/meta/callback"
 
-# The correct permissions to manage and publish to pages
-META_SCOPES = "pages_show_list,pages_read_engagement,pages_manage_posts,instagram_basic,instagram_content_publish,business_management,read_insights,instagram_manage_insights"
+# --- UPDATED: Added ads_management and ads_read ---
+META_SCOPES = (
+    "pages_show_list,pages_read_engagement,pages_manage_posts,"
+    "instagram_basic,instagram_content_publish,"
+    "business_management,read_insights,instagram_manage_insights,"
+    "ads_management,ads_read"
+)
+# ---
 
 # --- Pydantic Models ---
 class LinkedMetaAccountPayload(BaseModel):
@@ -66,7 +71,7 @@ async def get_meta_auth_url(current_user: CurrentUserDependency):
 async def meta_callback(request: Request, db: DbDependency):
     """
     BIGGEST CHANGE: Handles OAuth callback, gets the user token, then immediately
-    fetches all pages and their Page Access Tokens, saving them securely to the database.
+    fetches all pages AND ad accounts, saving them securely to the database.
     """
     code = request.query_params.get('code')
     state_user_id = request.query_params.get('state')
@@ -112,8 +117,42 @@ async def meta_callback(request: Request, db: DbDependency):
 
             # 3. Save this entire list of pages to the user's record in the DB
             await user_service.update_user_meta_pages(db=db, user_id=user.id, pages=pages_to_store)
-            
             logger.info(f"Successfully fetched and stored {len(pages_to_store)} Meta pages for user {user.email}")
+            
+            # --- NEW 4: Fetch the user's Ad Account ID ---
+            ad_account_id = None
+            try:
+                ad_accounts_url = "https://graph.facebook.com/v19.0/me/adaccounts"
+                params = {"access_token": long_lived_user_token, "fields": "id,account_id"}
+                resp = await client.get(ad_accounts_url, params=params)
+                resp.raise_for_status()
+                ad_accounts_data = resp.json().get("data", [])
+                
+                if ad_accounts_data:
+                    # Find the personal ad account (it contains 'act_')
+                    # This is the one we usually want for this kind of app
+                    personal_account = next((acc for acc in ad_accounts_data if "act_" in acc.get("id")), None)
+                    
+                    if personal_account:
+                        ad_account_id = personal_account.get("id")
+                    else:
+                        # Fallback: just grab the first one
+                        ad_account_id = ad_accounts_data[0].get("id")
+
+                if ad_account_id:
+                    # --- NEW 5: Save the Ad Account ID to the user ---
+                    await user_service.set_user_meta_ad_account(db=db, user_id=user.id, ad_account_id=ad_account_id)
+                    logger.info(f"Successfully found and saved Meta Ad Account ID {ad_account_id} for user {user.email}")
+                else:
+                    logger.warning(f"User {user.email} connected, but no Ad Account was found.")
+
+            except Exception as ad_e:
+                # Log this error, but don't fail the entire auth flow
+                # The user might only want to schedule posts, not run ads
+                logger.error(f"Failed to fetch Meta Ad Account for user {user.email}: {ad_e}")
+            # ---
+            
+            # --- FIX: This return is now at the end of the 'try' block ---
             return RedirectResponse(url=f"{config.CLIENT_HOST}/connections?meta_auth=success")
 
         except (httpx.RequestError, httpx.HTTPStatusError, ValueError) as e:
@@ -176,4 +215,3 @@ async def disconnect_meta_account(current_user: CurrentUserDependency, db: DbDep
     """Disconnects the user's Meta account by clearing all related fields."""
     await user_service.disconnect_meta_account(db=db, user_id=current_user.id)
     return {"message": "Meta account disconnected successfully."}
-

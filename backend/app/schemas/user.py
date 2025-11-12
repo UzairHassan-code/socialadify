@@ -89,6 +89,9 @@ class UserInDBBase(UserBase):
 
     meta_access_token: Optional[str] = None
     meta_access_token_expiry: Optional[datetime] = None
+
+    # Meta ad account field addition
+    meta_ad_account_id: Optional[str] = None
     meta_pages: Optional[List[MetaPageInDB]] = None
     linked_page_id: Optional[str] = None
     linked_page_name: Optional[str] = None
@@ -106,6 +109,7 @@ class UserPublic(UserBase):
     email: EmailStr
     is_admin: bool = False
     google_ad_account_id: Optional[str] = None
+    meta_ad_account_id: Optional[str] = None
     
     # --- THE FIX: We expose the 'linked_' fields to the frontend ---
     linked_page_id: Optional[str] = None
@@ -123,6 +127,9 @@ class UserPublic(UserBase):
             profile_picture_url=user_in_db.profile_picture_url,
             is_admin=user_in_db.is_admin,
             google_ad_account_id=user_in_db.google_ad_account_id,
+
+            # Meta Ad Account Field Added
+            meta_ad_account_id=user_in_db.meta_ad_account_id,
             # Map the new "linked_" fields from the database model
             linked_page_id=user_in_db.linked_page_id,
             linked_page_name=user_in_db.linked_page_name,
