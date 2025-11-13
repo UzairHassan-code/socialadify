@@ -30,6 +30,7 @@ from app.api.post_generator.router import router as post_generator_router
 from app.api.history.router import router as history_router
 from app.api.templates.router import router as templates_router
 from app.api.ads.router import router as ads_router
+from app.api.ads.meta_router import router as meta_ads_router
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -97,6 +98,7 @@ app.include_router(history_router, prefix="/history", tags=["History"])
 app.include_router(admin_router, prefix="/admin", tags=["Admin Panel"])
 app.include_router(templates_router, prefix="/templates", tags=["Post Templates"])
 app.include_router(ads_router, prefix="/ads", tags=["AI Ad Creation"])
+app.include_router(meta_ads_router, prefix="/ads/meta", tags=["Meta Ad Creation"])
 
 
 # --- (Root and health check endpoints remain the same) ---

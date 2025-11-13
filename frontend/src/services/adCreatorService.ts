@@ -30,6 +30,43 @@ async function handleApiError(response: Response, defaultErrorMessage: string): 
 
 // --- Audience Interface Removed ---
 
+
+// --- Interface Definitions ---
+
+// --- FIX: Moved Meta interfaces to the top ---
+export interface MetaAdCreativePayload {
+    campaign_name: string;
+    ad_goal: string;
+    platform: 'META';
+    primary_text: string;
+    headline: string;
+    website_url: string;
+    call_to_action: string;
+}
+
+export interface MetaAdCreativeFormPayload {
+    ad_data: MetaAdCreativePayload;
+    image_file: File;
+}
+
+export interface MetaAdCreativePublic {
+    id: string;
+    user_id: string;
+    campaign_name: string;
+    ad_goal: string;
+    platform: string;
+    primary_text: string;
+    headline: string;
+    website_url: string;
+    call_to_action: string;
+    image_url?: string | null;
+    status: 'DRAFT' | 'PUBLISHED' | 'FAILED';
+    created_at: string;
+    updated_at: string;
+    error_message?: string | null;
+}
+// ---
+
 // --- UPDATED: This now matches all fields in the new form ---
 export interface AdCreativePayload {
     campaign_name: string;
@@ -194,3 +231,75 @@ export async function publishAdToGoogle(token: string, adId: string): Promise<Ad
     }
     return response.json();
 }
+
+export async function createMetaAdDraft(
+    token: string, 
+    payload: MetaAdCreativeFormPayload
+): Promise<MetaAdCreativePublic> {
+    
+    const formData = new FormData();
+    formData.append('image_file', payload.image_file);
+    formData.append('ad_data_json', JSON.stringify(payload.ad_data));
+
+    const response = await fetch(`${API_BASE_URL}/ads/meta/`, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+        },
+        body: formData,
+    });
+
+    if (!response.ok) {
+        return handleApiError(response, 'Failed to create Meta ad draft.');
+    }
+    return response.json();
+}
+
+/**
+ * Fetches all Meta ad creatives for the user.
+ */
+export async function fetchMetaAdCreatives(
+    token: string, 
+    skip: number = 0, 
+    limit: number = 100
+): Promise<MetaAdCreativePublic[]> {
+    const response = await fetch(`${API_BASE_URL}/ads/meta/?skip=${skip}&limit=${limit}`, {
+        method: 'GET',
+        headers: { 'Authorization': `Bearer ${token}` },
+    });
+    if (!response.ok) {
+        return handleApiError(response, 'Failed to fetch Meta ad creatives.');
+    }
+    return response.json();
+}
+
+/**
+ * Deletes a Meta ad creative draft.
+ */
+export async function deleteMetaAdCreative(token: string, adId: string): Promise<void> {
+    const response = await fetch(`${API_BASE_URL}/ads/meta/${adId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` },
+    });
+    if (!response.ok) {
+        return handleApiError(response, 'Failed to delete Meta ad draft.');
+    }
+}
+
+/**
+ * Publishes a saved Meta ad draft.
+ */
+export async function publishAdToMeta(token: string, adId: string): Promise<MetaAdCreativePublic> {
+    const response = await fetch(`${API_BASE_URL}/ads/meta/publish/${adId}`, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+        },
+    });
+
+    if (!response.ok) {
+        return handleApiError(response, 'Failed to publish ad to Meta.');
+    }
+    return response.json();
+}
+// ---
