@@ -22,6 +22,15 @@ const GoogleLogoIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
     </svg>
 );
 
+// --- ADDED: MetaLogoIcon component ---
+const MetaLogoIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+        <path d="M23.99 12c0-6.627-5.372-12-11.995-12C5.372 0 0 5.373 0 12c0 6.012 4.425 10.985 10.125 11.85v-8.325H7.077V12h3.048V9.356c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.688.235 2.688.235v2.953H15.83c-1.49 0-1.956.925-1.956 1.874V12h3.328l-.532 3.525h-2.796v8.325C19.565 22.985 23.99 18.012 23.99 12z"/>
+    </svg>
+);
+// --- END: MetaLogoIcon component ---
+
+
 const CampaignList: React.FC<CampaignListProps> = ({
     campaigns,
     onCampaignSelect,
@@ -96,10 +105,17 @@ const CampaignList: React.FC<CampaignListProps> = ({
                                         {campaign.clicks.toLocaleString()} Clicks
                                     </span>
                                 </div>
+                                {/* --- MODIFIED: Conditionally render Google or Meta icon --- */}
                                 <div className={`flex items-center text-xs mt-0.5 ${isSelected ? 'text-white/70' : 'text-slate-400'}`}>
-                                    <GoogleLogoIcon className="w-3.5 h-3.5 mr-1.5" />
+                                    {campaign.platform === 'Google' && (
+                                        <GoogleLogoIcon className="w-3.5 h-3.5 mr-1.5" />
+                                    )}
+                                    {campaign.platform === 'Meta' && (
+                                        <MetaLogoIcon className="w-3.5 h-3.5 mr-1.5" />
+                                    )}
                                     Status: {campaign.status}
                                 </div>
+                                {/* --- END: Conditional icon --- */}
                             </button>
                         </li>
                     );
@@ -110,4 +126,3 @@ const CampaignList: React.FC<CampaignListProps> = ({
 };
 
 export default CampaignList;
-

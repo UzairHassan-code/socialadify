@@ -10,15 +10,20 @@ from pathlib import Path
 import pandas as pd
 import random
 
-# --- MODIFIED: Import both mock data structures ---
-from .mock_data import MOCK_CAMPAIGN_PERFORMANCE_1, MOCK_CAMPAIGN_PERFORMANCE_2
+# --- MODIFIED: Import all 3 mock data structures ---
+from .mock_data import (
+    MOCK_CAMPAIGN_PERFORMANCE_1, 
+    MOCK_CAMPAIGN_PERFORMANCE_2,
+    MOCK_CAMPAIGN_PERFORMANCE_3
+)
 
 router = APIRouter()
 
-# --- NEW: Create a dictionary to hold all mock campaigns for easy lookup ---
+# --- MODIFIED: Add the Meta mock campaign to the lookup dictionary ---
 ALL_MOCK_CAMPAIGNS = {
     MOCK_CAMPAIGN_PERFORMANCE_1["campaign_id"]: MOCK_CAMPAIGN_PERFORMANCE_1,
     MOCK_CAMPAIGN_PERFORMANCE_2["campaign_id"]: MOCK_CAMPAIGN_PERFORMANCE_2,
+    MOCK_CAMPAIGN_PERFORMANCE_3["campaign_id"]: MOCK_CAMPAIGN_PERFORMANCE_3,
 }
 
 # --- ML Model Loading Section (Restored) ---
@@ -67,7 +72,8 @@ async def generate_campaign_suggestion(campaign_id: str):
     if not target_campaign_data:
         raise HTTPException(
             status_code=404,
-            detail=f"Detailed Metrics Unavailabe for Google Ads Test Account !"
+            # --- MODIFIED: Updated error message to be more generic ---
+            detail=f"Detailed Metrics Unavailable for this Ad Account or Campaign!"
         )
 
     try:
@@ -79,8 +85,15 @@ async def generate_campaign_suggestion(campaign_id: str):
 
         # 2. Calculate derived metrics
         spend = total_cost_micros / 1000000
-        # Made revenue slightly different for the second campaign to produce varied suggestions
-        revenue_multiplier = 1.8 if campaign_id == "MOCK-GOOGLE-CAMPAIGN-123" else 1.2
+        
+        # --- MODIFIED: Updated revenue logic to handle all 3 mock campaigns ---
+        if campaign_id == MOCK_CAMPAIGN_PERFORMANCE_1["campaign_id"]: # Efficient Google
+            revenue_multiplier = 1.8
+        elif campaign_id == MOCK_CAMPAIGN_PERFORMANCE_3["campaign_id"]: # Average Meta
+            revenue_multiplier = 1.5
+        else: # Default for inefficient Google (MOCK_CAMPAIGN_PERFORMANCE_2)
+            revenue_multiplier = 1.2
+            
         revenue = spend * revenue_multiplier
         roi = ((revenue - spend) / spend) if spend > 0 else 0
         conversion_rate = (total_clicks / total_impressions) * 100 if total_impressions > 0 else 0

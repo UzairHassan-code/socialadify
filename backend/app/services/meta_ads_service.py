@@ -3,10 +3,12 @@
 import httpx
 from pathlib import Path
 import logging
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List 
 
 from app.schemas.user import UserInDB
 from app.api.ads.meta_schemas import MetaAdCreativeInDB
+# --- ADD THIS IMPORT ---
+from app.api.insights.mock_data import MOCK_META_CAMPAIGN_1
 
 logger = logging.getLogger(__name__)
 
@@ -250,15 +252,8 @@ async def publish_meta_ad(
 ) -> str:
     """
     Main orchestrator function to create a complete, paused Meta ad.
-    
-    Args:
-        current_user: The authenticated user object.
-        ad_draft: The MetaAdCreativeInDB object from our database.
-        image_path: The absolute server path to the ad image.
-        
-    Returns:
-        The resource name of the created ad.
     """
+    # ... (function content is unchanged) ...
     logger.info(f"Starting Meta Ad publishing for ad draft: {ad_draft.id}")
     
     # 1. Get critical IDs and Tokens from the user
@@ -296,3 +291,65 @@ async def publish_meta_ad(
         logger.error(f"Meta Ad publishing failed: {e}", exc_info=True)
         # Re-raise the clean error message to be caught by the router
         raise Exception(str(e))
+
+# --- THIS IS THE UPDATED FUNCTION ---
+async def get_meta_campaigns(current_user: UserInDB) -> List[Dict[str, Any]]:
+    """
+    Fetches a list of Meta Ads campaigns for the user's linked ad account.
+    
+    Formats the data to match the structure of google_ads_service.get_campaigns
+    to provide a unified response to the frontend.
+    """
+    logger.info(f"Fetching Meta campaigns for user: {current_user.email}")
+    
+    ad_account_id = current_user.meta_ad_account_id
+    access_token = current_user.linked_page_access_token
+
+    campaign_list = [] # <-- Initialize list outside the try block
+
+    if not ad_account_id or not access_token:
+        logger.warning(f"User {current_user.email} missing Meta ad account or token. Returning mock data only.")
+        # We will just return the mock campaign if not configured
+        campaign_list.append(MOCK_META_CAMPAIGN_1)
+        return campaign_list
+
+    params = {
+        "access_token": access_token,
+        "fields": "id,name,status",
+        "limit": 200 # Get up to 200 campaigns
+    }
+    
+    try:
+        response_data = await _make_meta_api_request(
+            endpoint=f"/{ad_account_id}/campaigns",
+            method="GET",
+            params=params
+        )
+        
+        for campaign in response_data.get("data", []):
+            # Standardize the output to match the Google campaign structure
+            campaign_list.append({
+                "id": campaign.get("id"),
+                "name": campaign.get("name"),
+                "status": campaign.get("status", "UNKNOWN"),
+                # Add zeroed-out metrics to match the expected structure
+                "clicks": 0,
+                "impressions": 0,
+                "ctr": 0,
+                "average_cpc": 0,
+                "cost": 0,
+            })
+        
+        logger.info(f"Found {len(campaign_list)} real Meta campaigns.")
+        
+    except Exception as e:
+        logger.error(f"Failed to fetch REAL Meta campaigns for {current_user.email}: {e}", exc_info=True)
+        # Don't re-raise, we want to return mock data anyway
+        logger.info("Returning mock data for Meta due to API error.")
+
+    # --- THIS LINE IS NOW OUTSIDE THE TRY BLOCK ---
+    # This ensures it's *always* added, even if the API fails
+    campaign_list.append(MOCK_META_CAMPAIGN_1)
+    logger.info("Added 1 mock Meta campaign to the list.")
+    
+    return campaign_list

@@ -31,6 +31,22 @@ interface GoogleCampaignsResponse {
     campaigns: GoogleCampaign[];
 }
 
+// --- ADDED: Meta Campaign Interfaces ---
+export interface MetaCampaign {
+    id: string;
+    name: string;
+    status: string;
+    clicks: number;
+    impressions: number;
+    ctr: number;
+    average_cpc: number;
+    cost: number;
+}
+
+interface MetaCampaignsResponse {
+    campaigns: MetaCampaign[];
+}
+// --- END: Meta Campaign Interfaces ---
 // --- Interfaces for detailed campaign performance data ---
 export interface TrendPoint {
     date: string;
@@ -111,6 +127,16 @@ export async function getGoogleCampaigns(token: string): Promise<GoogleCampaigns
     return response.json();
 }
 
+// --- ADDED: getMetaCampaigns function ---
+export async function getMetaCampaigns(token: string): Promise<MetaCampaignsResponse> {
+    const response = await fetch(`${API_BASE_URL}/ads/meta/campaigns`, {
+        method: 'GET',
+        headers: { 'Authorization': `Bearer ${token}` },
+    });
+    if (!response.ok) return handleApiError(response, 'Failed to fetch Meta Ads campaigns.');
+    return response.json();
+}
+
 export const getGoogleCampaignPerformance = async (token: string, campaignId: string): Promise<PerformanceData> => {
     const response = await fetch(`${API_BASE_URL}/insights/google/campaigns/${campaignId}/performance`, {
         method: 'GET',
@@ -124,6 +150,7 @@ export const getGoogleCampaignPerformance = async (token: string, campaignId: st
     }
     return response.json();
 };
+
 
 // --- Function to fetch AI suggestion for a campaign ---
 export const getAiSuggestionForCampaign = async (token: string, campaignId: string): Promise<AISuggestion> => {

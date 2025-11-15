@@ -249,3 +249,34 @@ async def publish_ad_to_meta(
          raise HTTPException(status_code=404, detail="Ad not found after update.")
 
     return _to_meta_ad_public(updated_ad)
+
+@router.get(
+    "/campaigns",
+    summary="List all Meta Ads Campaigns",
+    # We don't define a response_model here to keep it flexible,
+    # but it will return {"campaigns": [...]}
+)
+async def get_meta_campaigns_list(
+    current_user: CurrentUserDependency
+):
+    """
+    Fetches all Meta Ads campaigns (not drafts) for the user's linked account.
+    """
+    logger.info(f"User {current_user.email} fetching their Meta campaigns.")
+    
+    if not current_user.meta_ad_account_id or not current_user.linked_page_access_token:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Meta account is not fully configured. Please connect a Meta Page and Ad Account."
+        )
+
+    try:
+        campaigns = await meta_ads_service.get_meta_campaigns(current_user=current_user)
+        # Return in the same format as the Google Ads router for consistency
+        return {"campaigns": campaigns}
+    except Exception as e:
+        logger.error(f"Failed to retrieve Meta campaigns for {current_user.email}: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )

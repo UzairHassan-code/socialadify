@@ -33,6 +33,7 @@ export interface UserPublic {
     is_admin: boolean;
 
     google_ad_account_id?: string | null;
+    meta_ad_account_id?: string | null;
     linked_page_id?: string | null;
     linked_page_name?: string | null;
     linked_instagram_id?: string | null;

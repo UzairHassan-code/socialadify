@@ -10,14 +10,19 @@ import CampaignComparisonChart from '../../components/CampaignComparisonChart';
 import { useAuth } from '../../context/AuthContext';
 import { 
     getGoogleCampaigns, GoogleCampaign, getGoogleCampaignPerformance, PerformanceData,
-    getAiSuggestionForCampaign, AISuggestion, Statistics
+    getAiSuggestionForCampaign, AISuggestion, Statistics,
+    // --- ADDED: Meta imports ---
+    getMetaCampaigns, MetaCampaign
 } from '../../services/insightsService';
 
-// Interfaces (Unchanged)
+// --- MODIFIED: Updated UnifiedCampaign interface ---
 export interface UnifiedCampaign {
-    id: string; name: string; status: string; platform: 'Google';
+    id: string; name: string; status: string; 
+    platform: 'Google' | 'Meta'; // <-- Allow 'Meta'
     clicks: number; impressions: number; ctr: number; cost: number; cpc: number;
 }
+// --- END: UnifiedCampaign ---
+
 export interface ComparisonData {
     campaign1: Statistics | null; campaign2: Statistics | null;
     campaign1Name: string; campaign2Name: string;
@@ -43,36 +48,93 @@ export default function DashboardPage() {
     const [isSuggestionLoading, setIsSuggestionLoading] = useState(false);
     const [suggestionError, setSuggestionError] = useState<string | null>(null);
     
-    // All data fetching and event handlers remain the same
+    // --- MODIFIED: This entire useEffect hook is replaced to fetch both Google and Meta ---
     useEffect(() => {
         const fetchCampaignList = async () => {
             if (!token || !user) {
                 if(isAuthReady) setCampaignsError("Please log in to view data.");
-                setIsLoadingCampaigns(false); return;
+                setIsLoadingCampaigns(false); 
+                return;
             }
-            setIsLoadingCampaigns(true); setCampaignsError(null);
+
+            setIsLoadingCampaigns(true);
+            setCampaignsError(null);
+            
+            const hasGoogle = !!user.google_ad_account_id;
+            const hasMeta = !!user.meta_ad_account_id;
+
+            if (!hasGoogle && !hasMeta) {
+                setCampaigns([]);
+                setCampaignsError("No ad account connected. Please connect Google or Meta to see campaigns.");
+                setIsLoadingCampaigns(false);
+                return;
+            }
+
             try {
-                if (user.google_ad_account_id) {
-                    const response = await getGoogleCampaigns(token);
-                    const unifiedData = response.campaigns.map((c: GoogleCampaign): UnifiedCampaign => ({
-                        id: c.id, name: c.name, status: c.status, platform: 'Google',
-                        clicks: Number(c.clicks), impressions: Number(c.impressions),
-                        ctr: Number(c.ctr) * 100, cost: Number(c.cost), cpc: Number(c.average_cpc),
-                    }));
-                    setCampaigns(unifiedData);
-                } else {
-                    setCampaigns([]);
-                    setCampaignsError("No ad account connected. Please connect your Google Ads account to see campaigns.");
+                const promises = [];
+                if (hasGoogle) {
+                    promises.push(getGoogleCampaigns(token));
                 }
+                if (hasMeta) {
+                    promises.push(getMetaCampaigns(token));
+                }
+
+                // We use Promise.allSettled to ensure that if one API fails,
+                // the other can still display its campaigns.
+                const results = await Promise.allSettled(promises);
+
+                let allCampaigns: UnifiedCampaign[] = [];
+                let fetchErrors: string[] = [];
+
+                // Process Google results
+                if (hasGoogle) {
+                    const googleResult = results[0];
+                    if (googleResult.status === 'fulfilled') {
+                        const googleCampaigns = googleResult.value.campaigns.map((c: GoogleCampaign): UnifiedCampaign => ({
+                            id: c.id, name: c.name, status: c.status, platform: 'Google',
+                            clicks: Number(c.clicks), impressions: Number(c.impressions),
+                            ctr: Number(c.ctr) * 100, cost: Number(c.cost), cpc: Number(c.average_cpc),
+                        }));
+                        allCampaigns = allCampaigns.concat(googleCampaigns);
+                    } else {
+                        fetchErrors.push("Failed to load Google campaigns.");
+                        console.error("Google fetch error:", googleResult.reason);
+                    }
+                }
+                
+                // Process Meta results
+                if (hasMeta) {
+                    const metaResult = results[hasGoogle ? 1 : 0]; // Adjust index based on whether Google was fetched
+                    if (metaResult.status === 'fulfilled') {
+                        const metaCampaigns = metaResult.value.campaigns.map((c: MetaCampaign): UnifiedCampaign => ({
+                            id: c.id, name: c.name, status: c.status, platform: 'Meta',
+                            clicks: Number(c.clicks), impressions: Number(c.impressions),
+                            ctr: Number(c.ctr), cost: Number(c.cost), cpc: Number(c.average_cpc),
+                        }));
+                        allCampaigns = allCampaigns.concat(metaCampaigns);
+                    } else {
+                        fetchErrors.push("Failed to load Meta campaigns.");
+                        console.error("Meta fetch error:", metaResult.reason);
+                    }
+                }
+
+                setCampaigns(allCampaigns);
+                if (fetchErrors.length > 0) {
+                    setCampaignsError(fetchErrors.join(' '));
+                }
+
             } catch (err) {
+                // This would be for a critical failure
                 setCampaignsError(err instanceof Error ? err.message : "An unknown error occurred.");
                 setCampaigns([]);
             } finally {
                 setIsLoadingCampaigns(false);
             }
         };
+
         if (isAuthReady) fetchCampaignList();
     }, [user, token, isAuthReady]);
+    // --- END: Replaced useEffect ---
 
     useEffect(() => {
         const fetchPerformanceData = async () => {
@@ -81,8 +143,20 @@ export default function DashboardPage() {
             }
             setIsPerformanceLoading(true); setPerformanceError(null); setPerformanceData(null);
             try {
-                const data = await getGoogleCampaignPerformance(token, selectedCampaign.id);
-                setPerformanceData(data);
+                // --- MODIFIED: Check platform before fetching performance ---
+                // For now, only Google campaigns have a performance detail endpoint.
+                // Meta campaigns will just show 0 stats (handled by backend returning zeros)
+                if (selectedCampaign.platform === 'Google') {
+                    const data = await getGoogleCampaignPerformance(token, selectedCampaign.id);
+                    setPerformanceData(data);
+                } else {
+                    // For Meta, the backend doesn't have a specific performance endpoint yet,
+                    // so we'll just fetch the mock/zero data.
+                    // This logic assumes getGoogleCampaignPerformance can handle any ID
+                    // and return 0s for non-Google/non-mock IDs, which your backend router does.
+                    const data = await getGoogleCampaignPerformance(token, selectedCampaign.id);
+                    setPerformanceData(data);
+                }
             } catch (err) {
                 setPerformanceError(err instanceof Error ? err.message : "Failed to load performance data.");
             } finally {
@@ -111,6 +185,8 @@ export default function DashboardPage() {
         setIsComparisonLoading(true);
         setComparisonData(null);
         try {
+            // This will correctly call the backend for each ID,
+            // returning real data for mock IDs and 0s for others.
             const [data1, data2] = await Promise.all([
                 getGoogleCampaignPerformance(token, comparisonIds[0]),
                 getGoogleCampaignPerformance(token, comparisonIds[1])
@@ -134,6 +210,7 @@ export default function DashboardPage() {
         setIsSuggestionLoading(true);
         setSuggestionError(null); setSuggestionData(null);
         try {
+            // This will work for any campaign ID, as the backend just needs the ID
             const data = await getAiSuggestionForCampaign(token, selectedCampaign.id);
             setSuggestionData(data);
         } catch (err) {
@@ -156,9 +233,9 @@ export default function DashboardPage() {
             return (
                 <section className="bg-slate-800/50 backdrop-blur-sm border border-slate-700 p-4 md:p-6 rounded-2xl shadow-2xl">
                     {isComparisonLoading ? (
-                         <div className="text-center p-10 h-[500px] flex items-center justify-center text-slate-300"><p>Loading comparison data...</p></div>
+                        <div className="text-center p-10 h-[500px] flex items-center justify-center text-slate-300"><p>Loading comparison data...</p></div>
                     ) : (
-                         <CampaignComparisonChart data={comparisonData} />
+                        <CampaignComparisonChart data={comparisonData} />
                     )}
                 </section>
             );
@@ -168,7 +245,7 @@ export default function DashboardPage() {
                 <section className="bg-slate-800/50 backdrop-blur-sm border border-slate-700 p-4 md:p-6 rounded-2xl shadow-2xl">
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4">
                         <h3 className="text-xl font-semibold text-slate-100">
-                           🚀 {selectedCampaign ? `Trends: ${selectedCampaign.name}` : 'Select a Campaign'}
+                            🚀 {selectedCampaign ? `Trends: ${selectedCampaign.name}` : 'Select a Campaign'}
                         </h3>
                         {selectedCampaign && (
                             <button onClick={handleGenerateSuggestion} disabled={isSuggestionLoading} className="mt-3 sm:mt-0 px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:bg-indigo-400 flex items-center transition-colors">
@@ -236,4 +313,3 @@ export default function DashboardPage() {
         </div>
     );
 }
-

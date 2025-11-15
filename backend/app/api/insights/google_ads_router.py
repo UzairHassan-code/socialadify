@@ -11,8 +11,12 @@ import app.services.google_ads_service as google_ads_service
 from app.crud import user as user_service
 from app.db.session import get_database
 from motor.motor_asyncio import AsyncIOMotorDatabase
-# --- FIXED: Import the correct, renamed mock performance objects ---
-from .mock_data import MOCK_CAMPAIGN_PERFORMANCE_1, MOCK_CAMPAIGN_PERFORMANCE_2
+# --- MODIFIED: Import all 3 mock performance objects ---
+from .mock_data import (
+    MOCK_CAMPAIGN_PERFORMANCE_1, 
+    MOCK_CAMPAIGN_PERFORMANCE_2,
+    MOCK_CAMPAIGN_PERFORMANCE_3
+)
 
 # --- Dependencies ---
 CurrentUserDependency = Annotated[UserInDB, Depends(get_current_active_user)]
@@ -106,7 +110,7 @@ async def get_google_campaigns(current_user: CurrentUserDependency):
             detail="Failed to retrieve Google Ads campaigns."
         )
 
-# --- FIXED: Endpoint now handles both mock campaigns ---
+# --- MODIFIED: Endpoint now handles all 3 mock campaigns ---
 @router.get("/google/campaigns/{campaign_id}/performance")
 async def get_google_campaign_performance(
     campaign_id: str,
@@ -121,15 +125,20 @@ async def get_google_campaign_performance(
     elif campaign_id == MOCK_CAMPAIGN_PERFORMANCE_2["campaign_id"]:
         logger.info("Returning MOCK performance data for campaign 2.")
         performance_to_process = MOCK_CAMPAIGN_PERFORMANCE_2
+    # --- ADD THIS ELIF BLOCK ---
+    elif campaign_id == MOCK_CAMPAIGN_PERFORMANCE_3["campaign_id"]:
+        logger.info("Returning MOCK performance data for Meta campaign 3.")
+        performance_to_process = MOCK_CAMPAIGN_PERFORMANCE_3
+    # --- END OF ADDED BLOCK ---
 
     if performance_to_process:
         total_impressions = sum(day['impressions'] for day in performance_to_process['performance_data'])
         total_clicks = sum(day['clicks'] for day in performance_to_process['performance_data'])
         total_cost = sum(day['cost_micros'] for day in performance_to_process['performance_data']) / 1000000
-        reach = int(total_impressions * 0.85)
+        reach = int(total_impressions * 0.85) # Mock reach
         frequency = round(total_impressions / reach, 2) if reach > 0 else 0
         cpm = round((total_cost / total_impressions) * 1000, 2) if total_impressions > 0 else 0
-        conversions = int(total_clicks * 0.05)
+        conversions = int(total_clicks * 0.05) # Mock conversions
         cpa = round(total_cost / conversions, 2) if conversions > 0 else 0
         ctr = (total_clicks / total_impressions * 100) if total_impressions > 0 else 0
         avg_cpc = (total_cost / total_clicks) if total_clicks > 0 else 0
@@ -143,6 +152,5 @@ async def get_google_campaign_performance(
             }
         }
     
-    logger.warning(f"Real performance data fetch not implemented for campaign {campaign_id}. Returning zeros.")
+    logger.warning(f"No mock performance data found for campaign {campaign_id}. Returning zeros.")
     return { "trends": [], "statistics": { "impressions": 0, "clicks": 0, "cost": 0, "ctr": 0, "avg_cpc": 0, "reach": 0, "frequency": 0, "cpm": 0, "conversions": 0, "cpa": 0 } }
-
