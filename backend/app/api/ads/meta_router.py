@@ -17,7 +17,7 @@ import time
 from app.schemas.user import UserInDB, PyObjectId as UserPyObjectId
 from app.core.security import get_current_active_user
 from app.db.session import get_database
-from app.services import meta_service # We will use this later
+from app.services import meta_ads_service # We will use this later
 from app.crud import meta_ad_creative as meta_ad_crud # Import our new CRUD file
 
 # --- Import the new Meta schemas ---
@@ -183,7 +183,7 @@ async def delete_meta_ad_draft(
     
     return None
 
-# --- Publishing Endpoint (Placeholder) ---
+    # --- Publishing Endpoint (UPDATED) ---
 @router.post(
     "/publish/{ad_id}",
     response_model=MetaAdCreativePublic,
@@ -196,34 +196,56 @@ async def publish_ad_to_meta(
 ):
     logger.info(f"User {current_user.email} requesting to publish Meta Ad {ad_id}.")
     
-    # --- THIS IS WHERE WE WILL BUILD THE META PUBLISHING LOGIC ---
-    # For now, it's a placeholder
-    
-    # 1. Get the ad from our database
-    # 2. Get user's meta_ad_account_id and linked_page_access_token
-    # 3. Call meta_service.py to create Campaign
-    # 4. Call meta_service.py to create Ad Set
-    # 5. Call meta_service.py to upload Image
-    # 6. Call meta_service.py to create Ad Creative
-    # 7. Update status in our DB
-    
-    # Placeholder: Just return the draft for now
     try:
         ad_object_id = UserPyObjectId(ad_id)
         user_object_id = UserPyObjectId(str(current_user.id))
     except Exception:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid ad ID format.")
 
+    # 1. Get the ad from our database
     ad_draft = await meta_ad_crud.get_meta_ad_creative_by_id(db, ad_id=ad_object_id, user_id=user_object_id)
     if not ad_draft:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Ad draft not found.")
-
-    # Simulate a successful publish for testing
-    await meta_ad_crud.update_meta_ad_creative_status(db, ad_id=ad_object_id, new_status="PUBLISHED")
-    updated_ad = await meta_ad_crud.get_meta_ad_creative_by_id(db, ad_id=ad_object_id, user_id=user_object_id)
+    if ad_draft.status == "PUBLISHED":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="This ad has already been published.")
+        
+    # 2. Check for required user credentials
+    if not current_user.meta_ad_account_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No Meta Ad Account is linked. Please connect one on the Connections page.")
+    if not current_user.linked_page_access_token or not current_user.linked_page_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No Meta Page is linked. Please select one on the Connections page.")
     
+    # 3. Check for image URL
+    if not ad_draft.image_url:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot publish ad: Image is missing.")
+
+    # 4. Get absolute path to image
+    image_filename = Path(ad_draft.image_url).name
+    image_absolute_path = AD_CREATIVE_IMAGES_DIR / image_filename
+    if not image_absolute_path.exists():
+        logger.error(f"Image file not found at {image_absolute_path} for ad {ad_id}")
+        raise HTTPException(status_code=500, detail="Ad image file not found on server.")
+
+    # 5. Call the new service
+    try:
+        await meta_ads_service.publish_meta_ad(
+            current_user=current_user,
+            ad_draft=ad_draft,
+            image_path=image_absolute_path
+        )
+        
+        # 6. Update status in our DB
+        await meta_ad_crud.update_meta_ad_creative_status(db, ad_id=ad_object_id, new_status="PUBLISHED")
+
+    except Exception as e:
+        logger.error(f"Failed to publish meta ad {ad_id}: {e}", exc_info=True)
+        # Save the error message to the draft
+        await meta_ad_crud.update_meta_ad_creative_status(db, ad_id=ad_object_id, new_status="FAILED", error_message=str(e))
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to publish to Meta: {e}")
+
+    # 7. Return the updated ad
+    updated_ad = await meta_ad_crud.get_meta_ad_creative_by_id(db, ad_id=ad_object_id, user_id=user_object_id)
     if not updated_ad:
          raise HTTPException(status_code=404, detail="Ad not found after update.")
 
-    logger.warning(f"Meta publishing for {ad_id} is a placeholder. Returning 'PUBLISHED' status.")
     return _to_meta_ad_public(updated_ad)
