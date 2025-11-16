@@ -1,3 +1,4 @@
+// D:\socialadify\frontend\src\components\MetaAdCreatorForm.tsx
 'use client';
 
 import React, { useState, FormEvent, ChangeEvent } from 'react';
@@ -18,6 +19,11 @@ const defaultAdCreative: MetaAdCreativePayload = {
     campaign_name: '',
     ad_goal: 'OUTCOME_TRAFFIC', // Default Meta Objective
     platform: 'META',
+    
+    // --- ADDED: budget field ---
+    budget: 1000, // Default budget, e.g., 1000 PKR
+    // ---
+    
     primary_text: '',
     headline: '',
     website_url: '',
@@ -49,11 +55,18 @@ export const MetaAdCreatorForm: React.FC<MetaAdCreatorFormProps> = ({
     const labelClass = "block text-sm font-medium text-slate-300 mb-1.5";
     const inputClass = "w-full px-4 py-2.5 bg-slate-700/50 border border-slate-600 rounded-lg shadow-sm focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition text-slate-100 placeholder-slate-400 disabled:opacity-50";
 
-    // --- Form Handlers ---
+    // --- MODIFIED: Form Handler to correctly parse numbers ---
     const handleFormChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
-        setFormState(prev => ({ ...prev, [name]: value }));
+        // Check input type to correctly handle numbers
+        const type = (e.target as HTMLInputElement).type;
+        
+        setFormState(prev => ({ 
+            ...prev, 
+            [name]: type === 'number' ? parseFloat(value) || 0 : value 
+        }));
     };
+    // ---
 
     const handleImageChange = (e: ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -82,8 +95,16 @@ export const MetaAdCreatorForm: React.FC<MetaAdCreatorFormProps> = ({
         setIsSubmitting(true);
         setError(null);
 
+        // --- MODIFIED: Ensure budget is a number ---
+        // (Handled by handleFormChange, but good to double-check)
+        const adDataWithNumericBudget = {
+            ...formState,
+            budget: Number(formState.budget) || 0
+        };
+        // ---
+
         const payload: MetaAdCreativeFormPayload = {
-            ad_data: formState,
+            ad_data: adDataWithNumericBudget, // <-- Use the corrected data
             image_file: imageFile
         };
 
@@ -136,7 +157,24 @@ export const MetaAdCreatorForm: React.FC<MetaAdCreatorFormProps> = ({
                         </select>
                     </div>
                 </div>
-                
+
+                {/* --- ADDED: Budget Input Field --- */}
+                <div>
+                    <label htmlFor="budget" className={labelClass}>Daily Budget (PKR)*</label>
+                    <input 
+                        type="number" 
+                        id="budget" 
+                        name="budget" // <-- 'name' must match the state key
+                        value={formState.budget} 
+                        onChange={handleFormChange} 
+                        className={inputClass} 
+                        required 
+                        placeholder="e.g., 1000"
+                        min="100" 
+                    />
+                </div>
+                {/* --- END: Budget Input Field --- */}
+
                 <h3 className="text-xl font-semibold text-slate-200 border-b border-slate-700 pb-2 pt-4">Ad Creative</h3>
 
                 {/* --- Single Image Upload (like scheduler) --- */}

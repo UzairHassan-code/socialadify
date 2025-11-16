@@ -27,6 +27,10 @@ const defaultAdCreative: AdCreativeFormPayload['ad_data'] = {
     ad_goal: 'TRAFFIC',
     platform: 'GOOGLE',
     
+    // --- ADDED: budget field ---
+    budget: 1000, // Default budget, e.g., 1000 PKR
+    // ---
+
     // Ad Details
     final_url: '',
     business_name: '',
@@ -147,6 +151,9 @@ export const AdCreatorForm: React.FC<AdCreatorFormProps> = ({
         // Filter empty strings from arrays
         const ad_data: AdCreativeFormPayload['ad_data'] = {
             ...formState,
+            // --- ADDED: Ensure budget is a number ---
+            budget: Number(formState.budget) || 0,
+            // ---
             headlines: formState.headlines.filter(h => h.trim() !== ''),
             descriptions: formState.descriptions.filter(d => d.trim() !== ''),
             // Audience filtering removed
@@ -207,7 +214,8 @@ export const AdCreatorForm: React.FC<AdCreatorFormProps> = ({
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                {/* --- MODIFIED: Changed to 3-col grid to fit budget --- */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
                     <div>
                         <label htmlFor="platform" className={labelClass}>Platform*</label>
                         <select id="platform" value={formState.platform} onChange={e => handleFormChange('platform', e.target.value)} className={inputClass}>
@@ -219,6 +227,21 @@ export const AdCreatorForm: React.FC<AdCreatorFormProps> = ({
                         <label htmlFor="business_name" className={labelClass}>Business Name*</label>
                         <input type="text" id="business_name" value={formState.business_name} onChange={e => handleFormChange('business_name', e.target.value)} className={inputClass} required placeholder="e.g., SocialAdify" />
                     </div>
+                    {/* --- ADDED: Budget Input Field --- */}
+                    <div>
+                        <label htmlFor="budget" className={labelClass}>Daily Budget (PKR)*</label>
+                        <input 
+                            type="number" 
+                            id="budget" 
+                            value={formState.budget} 
+                            onChange={e => handleFormChange('budget', e.target.valueAsNumber)} 
+                            className={inputClass} 
+                            required 
+                            placeholder="e.g., 1000"
+                            min="100" // Set a reasonable minimum
+                        />
+                    </div>
+                    {/* --- END: Budget Input Field --- */}
                 </div>
                 
                 <h3 className="text-xl font-semibold text-slate-200 border-b border-slate-700 pb-2 pt-4">Ad Creatives</h3>

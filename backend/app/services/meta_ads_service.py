@@ -190,7 +190,7 @@ async def _create_ad_set(
         "status": "PAUSED",
         "billing_event": "IMPRESSIONS",
         "optimization_goal": "LINK_CLICKS", # Must match the campaign objective
-        "daily_budget": 100000, # $50 in cents, won't be spent
+        "daily_budget": int(ad_draft.budget * 100), # $50 in cents, won't be spent
         "bid_amount": 2000, # $2 in cents, won't be spent
         "targeting": targeting,
     }

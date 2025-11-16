@@ -23,7 +23,7 @@ class MetaAdCreativeBase(BaseModel):
     # Meta's objectives are different, e.g., 'OUTCOME_TRAFFIC', 'OUTCOME_AWARENESS', 'OUTCOME_LEADS'
     ad_goal: str = Field(..., example="OUTCOME_TRAFFIC") 
     platform: str = Field(default="META", example="META")
-
+    budget: Optional[float] = Field(default=None, example=1000.0, description="Daily budget in local currency (e.g., PKR)")
     # Meta-specific creative fields
     primary_text: str = Field(..., description="The main text/caption for the ad.", example="Check out our amazing summer sale!")
     headline: str = Field(..., description="The shorter headline, e.g., for link ads.", example="50% Off All T-Shirts")
@@ -39,12 +39,14 @@ class MetaAdCreativeBase(BaseModel):
 
 class MetaAdCreativePayload(MetaAdCreativeBase):
     """Payload from the client to create a new Meta ad draft."""
+    budget: float = Field(..., example=1000.0, description="Daily budget in local currency (e.g., PKR)")
     pass
 
 class MetaAdCreativeUpdate(BaseModel):
     """Payload to update an existing Meta ad draft."""
     campaign_name: Optional[str] = None
     ad_goal: Optional[str] = None
+    budget: Optional[float] = None
     primary_text: Optional[str] = None
     headline: Optional[str] = None
     website_url: Optional[str] = None

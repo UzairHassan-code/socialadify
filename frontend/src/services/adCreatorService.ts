@@ -38,6 +38,7 @@ export interface MetaAdCreativePayload {
     campaign_name: string;
     ad_goal: string;
     platform: 'META';
+    budget: number;
     primary_text: string;
     headline: string;
     website_url: string;
@@ -55,6 +56,7 @@ export interface MetaAdCreativePublic {
     campaign_name: string;
     ad_goal: string;
     platform: string;
+    budget: number;
     primary_text: string;
     headline: string;
     website_url: string;
@@ -72,7 +74,7 @@ export interface AdCreativePayload {
     campaign_name: string;
     ad_goal: string;
     platform: 'GOOGLE' | 'META';
-    
+    budget: number;
     // New Ad Creative Fields
     final_url: string;
     business_name: string;
@@ -98,8 +100,7 @@ export interface AdCreativePublic {
     campaign_name: string;
     ad_goal: string;
     platform: string;
-    
-    // New Ad Creative Fields
+    budget: number;
     final_url: string;
     business_name: string;
     call_to_action_text: string;

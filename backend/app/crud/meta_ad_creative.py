@@ -31,7 +31,7 @@ async def create_meta_ad_creative(
         "campaign_name": ad_data.campaign_name,
         "ad_goal": ad_data.ad_goal,
         "platform": ad_data.platform,
-        
+        "budget": ad_data.budget,
         "primary_text": ad_data.primary_text,
         "headline": ad_data.headline,
         "website_url": ad_data.website_url,

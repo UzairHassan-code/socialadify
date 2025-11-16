@@ -35,8 +35,7 @@ async def create_ad_creative(
         "campaign_name": ad_data.campaign_name,
         "ad_goal": ad_data.ad_goal,
         "platform": ad_data.platform,
-
-        # Add new ad fields
+        "budget": ad_data.budget,
         "final_url": ad_data.final_url,
         "business_name": ad_data.business_name,
         "call_to_action_text": ad_data.call_to_action_text,

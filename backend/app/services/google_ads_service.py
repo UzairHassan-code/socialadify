@@ -192,7 +192,7 @@ def _upload_image_asset(client: GoogleAdsClient, customer_id: str, image_path: s
     logger.info(f"Uploaded image asset ({suffix}) with resource name: {resource_name}")
     return resource_name
 
-def _create_campaign_budget(client: GoogleAdsClient, customer_id: str) -> str:
+def _create_campaign_budget(client: GoogleAdsClient, customer_id: str,ad_draft: AdCreativeInDB) -> str:
     """
     Creates a new CampaignBudget.
     Returns the resource name of the created budget.
@@ -201,7 +201,7 @@ def _create_campaign_budget(client: GoogleAdsClient, customer_id: str) -> str:
     budget_operation = client.get_type("CampaignBudgetOperation")
     budget = budget_operation.create
     budget.name = f"SocialAdify Budget {int(time.time())}"
-    budget.amount_micros = 1000 * 1_000_000
+    budget.amount_micros = int(ad_draft.budget * 1_000_000)
     budget.delivery_method = budget_delivery_method_enum.BudgetDeliveryMethodEnum.BudgetDeliveryMethod.STANDARD
 
     mutate_response = budget_service.mutate_campaign_budgets(customer_id=customer_id, operations=[budget_operation])
@@ -381,7 +381,7 @@ async def create_paused_ad_campaign(
         image_asset_name_landscape = _upload_image_asset(client, customer_id, image_path_landscape, "1.91x1")
         
         # Step 2: Create Campaign Budget
-        budget_resource_name = _create_campaign_budget(client, customer_id)
+        budget_resource_name = _create_campaign_budget(client, customer_id, ad_draft)
         
         # Step 3: Create Campaign (Paused)
         campaign_resource_name = _create_campaign(client, customer_id, budget_resource_name, ad_draft)

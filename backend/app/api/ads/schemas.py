@@ -22,6 +22,10 @@ class AdCreativeBase(BaseModel):
     ad_goal: str = Field(..., example="TRAFFIC") # e.g., "TRAFFIC", "AWARENESS", "LEADS"
     platform: str = Field(..., example="GOOGLE")
 
+    # --- MODIFIED: Made budget optional here to load old drafts ---
+    budget: Optional[float] = Field(default=None, example=1000.0, description="Daily budget in local currency (e.g., PKR)")
+    # ---
+
     # --- UPDATED: New required ad fields ---
     final_url: str = Field(..., example="https://www.socialadify.com")
     business_name: str = Field(..., example="SocialAdify")
@@ -42,11 +46,17 @@ class AdCreativeBase(BaseModel):
 # --- API Schemas ---
 
 class AdCreativePayload(AdCreativeBase):
+    # --- MODIFIED: Override budget to be REQUIRED for new drafts ---
+    budget: float = Field(..., example=1000.0, description="Daily budget in local currency (e.g., PKR)")
     pass
 
 class AdCreativeUpdate(BaseModel):
     campaign_name: Optional[str] = None
     ad_goal: Optional[str] = None
+    
+    # --- MODIFIED: Added optional budget for updates ---
+    budget: Optional[float] = None
+    # ---
     
     # --- UPDATED: New ad fields ---
     final_url: Optional[str] = None
@@ -70,7 +80,7 @@ class AdCreativeInDB(AdCreativeBase):
     user_id: PyObjectId # Changed from str to PyObjectId to fix the bug
     status: str = Field(default="DRAFT", example="DRAFT") # DRAFT, PUBLISHED, FAILED
     created_at: datetime = Field(default_factory=datetime.utcnow)
-    error_message: Optional[str] = None # For publishing errors
+    error_message: Optional[str] = None
 
 # --- Public Response Model (for API) ---
 class AdCreativePublic(AdCreativeBase):
