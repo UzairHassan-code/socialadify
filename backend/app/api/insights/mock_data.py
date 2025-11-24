@@ -53,10 +53,10 @@ MOCK_META_CAMPAIGN_1 = {
     "name": "My First Meta Test Ad",
     "status": "PAUSED", 
     "clicks": 88, # This will show "88 Clicks" in the list
-    "impressions": 0, 
-    "ctr": 0.0, 
-    "average_cpc": 0.0, 
-    "cost": 0.0,
+    "impressions": 5000, 
+    "ctr": 9.9, 
+    "average_cpc": 5.5, 
+    "cost": 6.0,
 }
 
 # --- ADDED: Mock Performance Data for Meta Campaign ---

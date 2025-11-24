@@ -1,3 +1,4 @@
+# D:\socialadify\backend\app\services\meta_service.py
 import httpx
 from pathlib import Path
 import logging
@@ -176,7 +177,7 @@ async def get_facebook_page_insights(
     logger.info(f"Fetching Facebook Page insights for Page ID: {page_id}")
     
     # Define the metrics we want for Facebook
-    metrics = "page_impressions_unique,page_post_engagements,page_fans"
+    metrics = "page_post_engagements"
     
     insights_url = f"{GRAPH_API_URL}/{GRAPH_API_VERSION}/{page_id}/insights"
     params = {
@@ -280,48 +281,52 @@ async def get_facebook_post_insights(
     page_access_token: str
 ) -> Dict[str, Any]:
     """
-    Fetches insights for a single Facebook post using valid v19.0 metrics.
+    Fetches insights for a Facebook post with a fallback mechanism.
     """
     logger.debug(f"Fetching insights for Facebook Post ID: {post_id}")
     insights_url = f"{GRAPH_API_URL}/{GRAPH_API_VERSION}/{post_id}/insights"
     
-    # These are the correct, valid metrics we found
-    metrics = "post_impressions,post_impressions_unique,post_clicks,post_reactions_by_type_total"
-    
-    params = {"metric": metrics, "access_token": page_access_token}
+    # 1. Try Detailed Metrics First
+    metrics_complex = "post_impressions,post_impressions_unique,post_clicks,post_reactions_by_type_total"
+    # 2. Fallback to Simple Metrics (Safe for almost all post types)
+    metrics_simple = "post_impressions_unique,post_clicks"
+
+    params = {"metric": metrics_complex, "access_token": page_access_token}
     
     insights_data: Dict[str, Any] = {}
 
     async with httpx.AsyncClient() as client:
         try:
             response = await client.get(insights_url, params=params)
+            
+            # If complex metrics fail, try simple ones
+            if response.status_code == 400:
+                logger.warning(f"Complex metrics failed for FB post {post_id}. Retrying with simple metrics.")
+                params["metric"] = metrics_simple
+                response = await client.get(insights_url, params=params)
+            
             response.raise_for_status()
             
-            # Helper to flatten the complex JSON response from Meta
-            for item in response.json().get("data", []):
+            data_points = response.json().get("data", [])
+
+            for item in data_points:
                 name = item.get("name")
-                value = item.get("values", [{}])[0].get("value")
+                values = item.get("values", [{}])
+                value = values[0].get("value") if values else 0
                 
                 if name == "post_reactions_by_type_total" and isinstance(value, dict):
                     insights_data['reactions'] = _parse_fb_reactions(value)
-                elif value is not None and isinstance(value, int):
-                    if name == "post_impressions":
-                        insights_data['impressions'] = value
-                    elif name == "post_impressions_unique":
-                        insights_data['reach'] = value
-                    elif name == "post_clicks":
-                        # We use 'post_clicks' as the base for 'engagement'
-                        # The router will add comments + shares to this.
-                        insights_data['engagement'] = value
+                elif name == "post_impressions":
+                    insights_data['impressions'] = value
+                elif name == "post_impressions_unique":
+                    insights_data['reach'] = value
+                elif name == "post_clicks":
+                    insights_data['engagement'] = value
         
-        except httpx.HTTPStatusError as e:
-            logger.error(f"HTTP error fetching insights for post {post_id}: {e.response.text}")
-            # Don't raise, just return empty data for this post
         except Exception as e:
-            logger.error(f"Unexpected error fetching insights for {post_id}: {e}")
-            # Don't raise, just return empty data for this post
+            logger.error(f"Failed to fetch insights for FB post {post_id}: {e}")
 
-    # Ensure all keys exist, even if they are 0 or default
+    # Ensure defaults
     insights_data.setdefault('impressions', 0)
     insights_data.setdefault('reach', 0)
     insights_data.setdefault('engagement', 0)
@@ -382,61 +387,70 @@ async def get_instagram_post_insights(
     page_access_token: str
 ) -> Dict[str, Any]:
     """
-    Fetches insights for a single Instagram post (media object).
+    Fetches insights for an Instagram post with specific error handling for 'impressions'.
     """
     logger.debug(f"Fetching insights for Instagram Post ID: {post_id}")
     insights_url = f"{GRAPH_API_URL}/{GRAPH_API_VERSION}/{post_id}/insights"
     
-    # --- THIS IS THE FIX (Part 2) ---
-    # Using the valid v19.0 metrics you provided (changed 'saves' to 'saved')
-    metrics = "impressions,reach,likes,comments,shares,saved"
+    # 1. Standard Request (Includes impressions)
+    metrics_standard = "impressions,reach,likes,comments,shares,saved"
+    # 2. Fallback Request (Removes impressions if API complains)
+    metrics_fallback = "reach,likes,comments,shares,saved"
     
-    params = {"metric": metrics, "access_token": page_access_token}
+    params = {"metric": metrics_standard, "access_token": page_access_token}
     
     insights_data: Dict[str, Any] = {}
     
     async with httpx.AsyncClient() as client:
         try:
             response = await client.get(insights_url, params=params)
+            
+            # Check specifically for the "Impressions no longer supported" error
+            if response.status_code == 400:
+                error_data = response.json().get("error", {})
+                error_msg = error_data.get("message", "")
+                
+                if "impressions metric is no longer supported" in error_msg or "valid insights metric" in error_msg:
+                    logger.warning(f"Impressions metric rejected for IG post {post_id}. Retrying without it.")
+                    params["metric"] = metrics_fallback
+                    response = await client.get(insights_url, params=params)
+
             response.raise_for_status()
             
-            # Helper to flatten the JSON response
-            for item in response.json().get("data", []):
+            data_points = response.json().get("data", [])
+            
+            for item in data_points:
                 name = item.get("name")
-                value = item.get("values", [{}])[0].get("value")
+                values = item.get("values", [{}])
+                value = values[0].get("value") if values else 0
                 
                 if value is not None:
-                    # Map metric names to our schema names (as per your suggestion)
                     if name == "impressions":
                         insights_data['impressions'] = value
                     elif name == "reach":
                         insights_data['reach'] = value
                     elif name == "likes":
-                        # We use setdefault to safely create the reactions dict
                         insights_data.setdefault('reactions', {})['like'] = value
                     elif name == "comments":
                         insights_data['comments'] = value
                     elif name == "shares":
                         insights_data['shares'] = value
-                    elif name == "saved": # <-- THIS IS THE FIX (changed from 'saves')
-                        insights_data['saved_count'] = value # Using 'saved_count' to avoid name clash
+                    elif name == "saved":
+                        insights_data['saved_count'] = value
             
-            # Manually calculate total engagement: likes + comments + shares + saves
+            # Calculate engagement
             likes = insights_data.get('reactions', {}).get('like', 0)
             comments = insights_data.get('comments', 0)
             shares = insights_data.get('shares', 0)
             saves = insights_data.get('saved_count', 0)
             insights_data['engagement'] = likes + comments + shares + saves
             
-            # Format reactions to match our schema
             insights_data['reactions'] = PostReactions(like=likes, total=likes)
 
-        except httpx.HTTPStatusError as e:
-            logger.error(f"HTTP error fetching insights for IG post {post_id}: {e.response.text}")
         except Exception as e:
-            logger.error(f"Unexpected error fetching insights for IG {post_id}: {e}")
+            logger.error(f"Final failure fetching insights for IG post {post_id}: {e}")
 
-    # Ensure all keys exist, even if they are 0 or default
+    # Ensure defaults
     insights_data.setdefault('impressions', 0)
     insights_data.setdefault('reach', 0)
     insights_data.setdefault('engagement', 0)

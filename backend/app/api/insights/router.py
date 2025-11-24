@@ -1,8 +1,14 @@
 # D:\socialadify\backend\app\api\insights\router.py
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
-from typing import Union
+from typing import Union, Annotated
+import logging # --- ADDED
+
+# --- Auth Imports (ADDED) ---
+from app.core.security import get_current_active_user
+from app.schemas.user import UserInDB
+# ---
 
 # --- ML/Data Handling Imports ---
 import joblib
@@ -10,7 +16,7 @@ from pathlib import Path
 import pandas as pd
 import random
 
-# --- MODIFIED: Import all 3 mock data structures ---
+# --- Import all 3 mock data structures ---
 from .mock_data import (
     MOCK_CAMPAIGN_PERFORMANCE_1, 
     MOCK_CAMPAIGN_PERFORMANCE_2,
@@ -18,16 +24,20 @@ from .mock_data import (
 )
 
 router = APIRouter()
+logger = logging.getLogger(__name__) # --- ADDED
 
-# --- MODIFIED: Add the Meta mock campaign to the lookup dictionary ---
+# --- Auth Dependency (ADDED) ---
+CurrentUserDependency = Annotated[UserInDB, Depends(get_current_active_user)]
+# ---
+
+# --- Dictionary to hold all mock campaigns for easy lookup ---
 ALL_MOCK_CAMPAIGNS = {
     MOCK_CAMPAIGN_PERFORMANCE_1["campaign_id"]: MOCK_CAMPAIGN_PERFORMANCE_1,
     MOCK_CAMPAIGN_PERFORMANCE_2["campaign_id"]: MOCK_CAMPAIGN_PERFORMANCE_2,
     MOCK_CAMPAIGN_PERFORMANCE_3["campaign_id"]: MOCK_CAMPAIGN_PERFORMANCE_3,
 }
 
-# --- ML Model Loading Section (Restored) ---
-# This section is the same as your old file, ensuring models are loaded on startup.
+# --- ML Model Loading Section (Unchanged) ---
 BASE_DIR = Path(__file__).resolve().parent
 MODEL_DIR = BASE_DIR / "ml_models"
 
@@ -48,57 +58,104 @@ except Exception as e:
 finally:
     if not models_loaded_successfully:
         print("One or more ML models failed to load. AI Suggestion functionality will be affected.")
-# --- END: ML Model Loading Section ---
 
 
-# --- Pydantic Schemas for AI Suggestion (Restored) ---
+# --- Pydantic Schemas for AI Suggestion ---
 class AdSuggestionResponse(BaseModel):
-    ad_id: str # We'll use the campaign ID here
+    ad_id: str
     suggestion: str
 
+# --- NEW: Endpoint for Dashboard Overview ---
+@router.get("/overview", summary="Get aggregated dashboard metrics")
+async def get_dashboard_overview(current_user: CurrentUserDependency):
+    """
+    Aggregates performance data from all mock campaigns (Google & Meta).
+    """
+    logger.info(f"Calculating dashboard overview for user: {current_user.email}")
 
-# --- AI SUGGESTION ENDPOINT (MODIFIED TO BE DYNAMIC) ---
+    all_campaigns = [
+        MOCK_CAMPAIGN_PERFORMANCE_1,
+        MOCK_CAMPAIGN_PERFORMANCE_2,
+        MOCK_CAMPAIGN_PERFORMANCE_3
+    ]
+
+    total_impressions = 0
+    total_clicks = 0
+    total_cost_micros = 0
+
+    for campaign in all_campaigns:
+        perf_data = campaign.get('performance_data', [])
+        total_impressions += sum(day['impressions'] for day in perf_data)
+        total_clicks += sum(day['clicks'] for day in perf_data)
+        total_cost_micros += sum(day['cost_micros'] for day in perf_data)
+
+    # Convert micros to currency unit for display
+    total_cost = total_cost_micros / 1_000_000
+
+    # Helper for formatting (K/M)
+    def format_number(num):
+        if num >= 1_000_000:
+            return f"{num/1_000_000:.1f}M"
+        if num >= 1_000:
+            return f"{num/1_000:.1f}K"
+        return str(int(num))
+
+    # --- UPDATED RETURN STRUCTURE ---
+    return {
+        "impressions": {
+            "value": format_number(total_impressions),
+            "raw": total_impressions,
+            "trend": 12, 
+            "status": "up" 
+        },
+        "cost_micros": { # Keeping the key you requested, but value is formatted currency
+            "value": f"${format_number(total_cost)}", 
+            "raw": total_cost,
+            "trend": -5, 
+            "status": "down"
+        },
+        "clicks": {
+            "value": format_number(total_clicks),
+            "raw": total_clicks,
+            "trend": 8, 
+            "status": "up"
+        }
+    }
+
+# --- AI SUGGESTION ENDPOINT ---
 @router.post("/campaign/{campaign_id}/generate-suggestion", response_model=AdSuggestionResponse, summary="Generate AI-based suggestion for a campaign")
 async def generate_campaign_suggestion(campaign_id: str):
-    """
-    Generates an AI-based optimization suggestion for a specific mock campaign.
-    """
+    # ... (Rest of the function remains exactly the same as before) ...
     if not models_loaded_successfully:
         raise HTTPException(status_code=503, detail="AI Suggestion service is unavailable: Models not loaded.")
 
-    # --- MODIFIED: Look for the campaign_id in our dictionary of all mock campaigns ---
     target_campaign_data = ALL_MOCK_CAMPAIGNS.get(campaign_id)
 
     if not target_campaign_data:
         raise HTTPException(
             status_code=404,
-            # --- MODIFIED: Updated error message to be more generic ---
             detail=f"Detailed Metrics Unavailable for this Ad Account or Campaign!"
         )
 
     try:
-        # 1. Use the performance data from the found campaign
         perf_data = target_campaign_data["performance_data"]
         total_clicks = sum(day['clicks'] for day in perf_data)
         total_impressions = sum(day['impressions'] for day in perf_data)
         total_cost_micros = sum(day['cost_micros'] for day in perf_data)
 
-        # 2. Calculate derived metrics
         spend = total_cost_micros / 1000000
         
-        # --- MODIFIED: Updated revenue logic to handle all 3 mock campaigns ---
-        if campaign_id == MOCK_CAMPAIGN_PERFORMANCE_1["campaign_id"]: # Efficient Google
+        if campaign_id == MOCK_CAMPAIGN_PERFORMANCE_1["campaign_id"]:
             revenue_multiplier = 1.8
-        elif campaign_id == MOCK_CAMPAIGN_PERFORMANCE_3["campaign_id"]: # Average Meta
+        elif campaign_id == MOCK_CAMPAIGN_PERFORMANCE_3["campaign_id"]:
             revenue_multiplier = 1.5
-        else: # Default for inefficient Google (MOCK_CAMPAIGN_PERFORMANCE_2)
+        else:
             revenue_multiplier = 1.2
             
         revenue = spend * revenue_multiplier
         roi = ((revenue - spend) / spend) if spend > 0 else 0
         conversion_rate = (total_clicks / total_impressions) * 100 if total_impressions > 0 else 0
 
-        # 3. Create the feature dictionary that our model expects
         features_for_model_dict = {
             "Target_Audience": "Young_Professionals",
             "Conversion_Rate": conversion_rate,
@@ -120,7 +177,6 @@ async def generate_campaign_suggestion(campaign_id: str):
         print(f"Error preparing features for mock campaign '{campaign_id}': {e}")
         raise HTTPException(status_code=500, detail=f"Error preparing data for AI model: {str(e)}")
 
-    # --- Prediction Pipeline (Same as your old logic) ---
     try:
         processed_features = preprocessor.transform(features_df)
         prediction_encoded = suggestion_model.predict(processed_features)

@@ -6,6 +6,7 @@ import logging
 from app.crud import scheduled_post as scheduler_crud
 from app.crud import user as user_crud
 from app.db.session import get_database_context
+from app.services.image_service import optimize_image_for_instagram
 # --- FIX: Import both new functions from meta_service ---
 from app.services.meta_service import (
     publish_photo_to_facebook_page, 
@@ -52,6 +53,8 @@ async def process_due_posts():
                 
                 page_access_token = post_user.linked_page_access_token
                 published_post_id = None
+                optimized_image_url = optimize_image_for_instagram(post.image_url)
+                logger.info(f"Optimized image for upload: {optimized_image_url}")
 
                 if post.target_platform == "Facebook":
                     if not post_user.linked_page_id:
@@ -63,7 +66,7 @@ async def process_due_posts():
                         user_id=post_user.id,
                         page_id=post_user.linked_page_id,
                         page_access_token=page_access_token,
-                        image_url_from_db=post.image_url,
+                        image_url_from_db=optimized_image_url,
                         caption=post.caption
                     )
 
@@ -77,7 +80,7 @@ async def process_due_posts():
                         user_id=post_user.id,
                         instagram_id=post_user.linked_instagram_id,
                         page_access_token=page_access_token,
-                        image_url_from_db=post.image_url,
+                        image_url_from_db=optimized_image_url,
                         caption=post.caption
                     )
                 

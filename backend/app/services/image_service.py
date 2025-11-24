@@ -94,3 +94,44 @@ def generate_image_from_template(
     except Exception as e:
         print(f"An unexpected error occurred during image generation: {e}")
         raise
+
+def optimize_image_for_instagram(image_path_str: str) -> str:
+    """
+    Takes a local file path, resizes it to max 1080px width, 
+    converts to JPEG, and compresses it for fast API upload.
+    
+    Returns: The path to the OPTIMIZED image.
+    """
+    try:
+        original_path = _BACKEND_ROOT / image_path_str.lstrip("/")
+        if not original_path.exists():
+            raise FileNotFoundError(f"Original image not found: {original_path}")
+
+        # Open image
+        with Image.open(original_path) as img:
+            # Convert to RGB (drop alpha channel if PNG)
+            img = img.convert("RGB")
+            
+            # Resize if width > 1080px (Instagram Standard)
+            if img.width > 1080:
+                aspect_ratio = img.height / img.width
+                new_height = int(1080 * aspect_ratio)
+                img = img.resize((1080, new_height), Image.LANCZOS)
+            
+            # Generate new filename
+            optimized_filename = f"opt_{original_path.stem}.jpg"
+            optimized_path = original_path.parent / optimized_filename
+            
+            # Save as JPEG with optimization
+            img.save(optimized_path, "JPEG", quality=85, optimize=True)
+            
+            # Return the relative path string that matches your DB format
+            # e.g., "/static/scheduled_post_images/opt_filename.jpg"
+            # We assume the original was in a subfolder of 'static', so we preserve that parent.
+            relative_parent = original_path.parent.relative_to(_BACKEND_ROOT)
+            return f"/{relative_parent}/{optimized_filename}"
+
+    except Exception as e:
+        print(f"Image optimization failed: {e}")
+        # Fallback: return the original path if optimization fails
+        return image_path_str

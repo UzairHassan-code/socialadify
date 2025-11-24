@@ -1,7 +1,8 @@
 # D:/socialadify/backend/app/api/scheduling/schemas.py
 from pydantic import BaseModel, Field, ConfigDict
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime, timezone
+from pydantic import BaseModel, Field
 from app.schemas.user import PyObjectId
 
 # --- NEW SCHEMAS FOR AI SUGGESTION ---
@@ -61,3 +62,15 @@ class ScheduledPostInDB(ScheduledPostBase):
 class ScheduledPostPublic(ScheduledPostInDB):
     id: str
     user_id: str
+
+# --- NEW SCHEMAS FOR CALENDAR STATUS ---
+
+class CalendarDayStatus(BaseModel):
+    """Represents the aggregated status for a single day on the calendar."""
+    date: str = Field(..., description="Date in YYYY-MM-DD format.")
+    status: str = Field(..., description="Aggregated status: 'scheduled', 'failed', 'completed', 'uploaded'.")
+    count: int = Field(..., description="Number of posts on this date with the given status.")
+
+class CalendarStatusResponse(BaseModel):
+    """The full response for the calendar endpoint."""
+    statuses: List[CalendarDayStatus] = Field(..., description="List of post statuses aggregated by day.")

@@ -19,7 +19,7 @@ from app.db.session import get_database
 from app.services import gemini_service 
 from app.api.scheduling.schemas import ( 
     ScheduledPostCreate, ScheduledPostPublic, ScheduledPostUpdate,
-    ScheduledPostInDB,AISuggestionRequest, AISuggestionResponse,
+    ScheduledPostInDB,AISuggestionRequest, AISuggestionResponse,CalendarStatusResponse,
 )
 from app.crud import scheduled_post as scheduler_crud
 
@@ -74,7 +74,47 @@ async def get_ai_time_suggestion(
         )
 
 # --- (The rest of the file remains completely unchanged) ---
+#THeeee calender wala parttt
+@router.get(
+    "/status",
+    response_model=CalendarStatusResponse,
+    summary="Get aggregated post status for a given month/year"
+)
+async def get_calendar_status(
+    current_user: CurrentUserDependency,
+    db: DbDependency,
+    year: Annotated[int, Query(description="The year to query (e.g., 2025)", ge=2024)],
+    month: Annotated[int, Query(description="The month to query (1-12)", ge=1, le=12)]
+):
+    """
+    Retrieves the aggregated post statuses (scheduled, failed, completed) for all
+    posts belonging to the user within the specified calendar month and year.
+    """
+    logger.info(f"User {current_user.email} requesting calendar status for {year}-{month}")
+    user_object_id = ObjectId(str(current_user.id))
+    
+    try:
+        # 💡 CRUCIAL: We assume the CRUD layer has a function to aggregate this data.
+        # This function should perform a MongoDB aggregation to group posts by day
+        # and determine the *highest priority* status for that day.
+        status_data = await scheduler_crud.get_monthly_post_status(
+            db=db,
+            user_id=user_object_id,
+            year=year,
+            month=month
+        )
+        
+        # The CRUD function is expected to return a list of dictionaries matching CalendarDayStatus
+        return CalendarStatusResponse(statuses=status_data)
 
+    except Exception as e:
+        logger.error(f"Error fetching calendar status for {current_user.email}: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve calendar post statuses."
+        )
+    
+#CHANGES END HERE:
 def _to_scheduled_post_public(post_db: ScheduledPostInDB) -> ScheduledPostPublic:
     """
     Helper function to convert ScheduledPostInDB instance to ScheduledPostPublic instance.

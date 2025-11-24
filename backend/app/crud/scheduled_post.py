@@ -154,3 +154,132 @@ async def update_post_status(db: AsyncIOMotorDatabase, post_id: ObjectId, new_st
         {"$set": update_fields}
     )
     return result.modified_count == 1
+
+
+
+#thiss is forr the calender attt main dashboardd
+async def get_monthly_post_status(
+    db: AsyncIOMotorDatabase, 
+    user_id: ObjectId, 
+    year: int, 
+    month: int
+) -> List[Dict[str, Any]]:
+    """
+    Retrieves the aggregated post status (count and dominant status) for each day
+    within a specified month and year for a specific user using MongoDB aggregation.
+    
+    The dominant status is determined by priority: failed > scheduled > completed > uploaded.
+    """
+    collection: AsyncIOMotorCollection = db[SCHEDULED_POSTS_COLLECTION]
+    
+    # Calculate the start and end dates for the given month (UTC)
+    start_date = datetime(year, month, 1, 0, 0, 0, tzinfo=timezone.utc)
+    # The next month's 1st day gives us a clean exclusive upper boundary
+    end_month = month + 1
+    end_year = year
+    if end_month > 12:
+        end_month = 1
+        end_year += 1
+    end_date = datetime(end_year, end_month, 1, 0, 0, 0, tzinfo=timezone.utc)
+
+    # Status Priority Map (for use in $switch)
+    # Higher number means higher priority for calendar display (e.g., Failed is most important)
+    STATUS_PRIORITY: Dict[str, int] = {
+        "failed": 4,
+        "scheduled": 3,
+        "completed": 1,
+    }
+
+    # MongoDB Aggregation Pipeline
+    pipeline = [
+        # 1. Filter posts for the user and the date range
+        {
+            "$match": {
+                "user_id": user_id,
+                "scheduled_at": {"$gte": start_date, "$lt": end_date},
+                # Exclude statuses that shouldn't appear on the calendar if any (e.g., 'draft')
+                "status": {"$in": ["scheduled", "failed", "completed"]}
+            }
+        },
+        
+        # 2. Group by the day (YYYY-MM-DD) and calculate min/max/count
+        {
+            "$group": {
+                "_id": {
+                    "day": {"$dayOfMonth": "$scheduled_at"},
+                    "month": {"$month": "$scheduled_at"},
+                    "year": {"$year": "$scheduled_at"}
+                },
+                "posts": {"$push": {"status": "$status"}}, # Collect all statuses for the day
+                "count": {"$sum": 1} # Total number of posts for that day
+            }
+        },
+        
+        # 3. Determine the final dominant status for the day
+        {
+            "$addFields": {
+                "max_priority": {
+                    "$max": {
+                        "$map": {
+                            "input": "$posts",
+                            "as": "post",
+                            "in": {
+                                # Use $switch to convert status string to its priority number
+                                "$switch": {
+                                    "branches": [
+                                        {"case": {"$eq": ["$$post.status", "failed"]}, "then": STATUS_PRIORITY['failed']},
+                                        {"case": {"$eq": ["$$post.status", "scheduled"]}, "then": STATUS_PRIORITY['scheduled']},
+                                        {"case": {"$eq": ["$$post.status", "completed"]}, "then": STATUS_PRIORITY['completed']},
+                                    ],
+                                    "default": 0 # Default low priority
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        
+        # 4. Convert the max priority back into the dominant status string
+        {
+            "$addFields": {
+                "dominant_status": {
+                    "$switch": {
+                        "branches": [
+                            {"case": {"$eq": ["$max_priority", STATUS_PRIORITY['failed']]}, "then": "failed"},
+                            {"case": {"$eq": ["$max_priority", STATUS_PRIORITY['scheduled']]}, "then": "scheduled"},
+                            {"case": {"$eq": ["$max_priority", STATUS_PRIORITY['completed']]}, "then": "completed"},
+                        ],
+                        "default": "completed"
+                    }
+                }
+            }
+        },
+        
+        # 5. Project the final result into the required frontend format (date: YYYY-MM-DD, status, count)
+       {
+    "$project": {
+        "_id": 0,
+        "date": {
+            # Use $dateToString on a reconstructed date to format YYYY-MM-DD reliably.
+            # We must create a new date using the $dateFromParts operator.
+            "$dateToString": {
+                "format": "%Y-%m-%d",
+                "date": {
+                    "$dateFromParts": {
+                        "year": "$_id.year",
+                        "month": "$_id.month",
+                        "day": "$_id.day"
+                    }
+                }
+            }
+        },
+        "status": "$dominant_status",
+        "count": "$count"
+    }
+}
+    ]
+
+    # Execute the aggregation pipeline
+    result_cursor = collection.aggregate(pipeline)
+    return await result_cursor.to_list(length=None)
